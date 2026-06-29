@@ -1,0 +1,29 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "TMJ App DEV",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main_dev.dart",
+      "flutterMode": "debug"
+    },
+    {
+      "name": "TMJ App PROD",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main_prod.dart",
+      "flutterMode": "debug"
+    },
+    {
+      "name": "TMJ Drive App Custom API",
+      "request": "launch",
+      "type": "dart",
+      "flutterMode": "debug",
+      "args": [
+        "--dart-define=APP_ENV=dev",
+        "--dart-define=API_BASE_URL=http://localhost:3000/api/"
+      ]
+    }
+  ]
+}

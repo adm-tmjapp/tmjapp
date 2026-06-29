@@ -1,0 +1,5 @@
+# Adicionando dependência para Google Places API
+# Veja https://pub.dev/packages/google_maps_webservice ou https://pub.dev/packages/flutter_google_places
+# Aqui usaremos google_maps_webservice
+
+google_maps_webservice: ^0.0.20
