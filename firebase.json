@@ -3,25 +3,25 @@
     "platforms": {
       "android": {
         "default": {
-          "projectId": "tmjapp-46d78",
-          "appId": "1:676772292779:android:9a6f4c9b8d5a838d77afee",
+          "projectId": "tmj-apps",
+          "appId": "1:812443835960:android:f7466f34cbdfa3c7fc10cd",
           "fileOutput": "android/app/google-services.json"
         }
       },
       "ios": {
         "default": {
-          "projectId": "tmjapp-46d78",
-          "appId": "1:676772292779:ios:bb59169a2273225e77afee",
+          "projectId": "tmj-apps",
+          "appId": "1:812443835960:ios:4ffd386514abcfc6fc10cd",
           "uploadDebugSymbols": true,
           "fileOutput": "ios/Runner/GoogleService-Info.plist"
         }
       },
       "dart": {
         "lib/firebase_options.dart": {
-          "projectId": "tmjapp-46d78",
+          "projectId": "tmj-apps",
           "configurations": {
-            "android": "1:676772292779:android:9a6f4c9b8d5a838d77afee",
-            "ios": "1:676772292779:ios:bb59169a2273225e77afee"
+            "android": "1:812443835960:android:f7466f34cbdfa3c7fc10cd",
+            "ios": "1:812443835960:ios:4ffd386514abcfc6fc10cd"
           }
         }
       }
