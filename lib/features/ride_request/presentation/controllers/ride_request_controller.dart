@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:tmjapp/core/presentation/controllers/disposable_change_notifier.dart';
+import 'package:tmjapp/features/destination_search/domain/entities/route_location.dart';
 import 'package:tmjapp/features/ride_request/domain/entities/ride_payment_method.dart';
 import 'package:tmjapp/features/ride_request/domain/entities/ride_request_args.dart';
 import 'package:tmjapp/features/ride_request/domain/entities/ride_stage.dart';
@@ -13,6 +14,7 @@ import 'package:tmjapp/features/ride_request/domain/usecases/get_ride_eta_usecas
 import 'package:tmjapp/features/ride_request/domain/usecases/get_ride_payment_options_usecase.dart';
 import 'package:tmjapp/features/ride_request/domain/usecases/get_ride_status_usecase.dart';
 import 'package:tmjapp/features/ride_request/domain/usecases/issue_ride_realtime_token_usecase.dart';
+import 'package:tmjapp/features/ride_request/domain/usecases/update_ride_route_usecase.dart';
 import 'package:tmjapp/features/ride_request/presentation/controllers/ride_request_state.dart';
 
 class RideRequestController extends ChangeNotifier
@@ -27,6 +29,7 @@ class RideRequestController extends ChangeNotifier
     required GetRideEtaUseCase getRideEtaUseCase,
     required IssueRideRealtimeTokenUseCase issueRideRealtimeTokenUseCase,
     required CancelRideUseCase cancelRideUseCase,
+    required UpdateRideRouteUseCase updateRideRouteUseCase,
   })  : _args = args,
         _createRideQuoteUseCase = createRideQuoteUseCase,
         _getRidePaymentOptionsUseCase = getRidePaymentOptionsUseCase,
@@ -35,7 +38,8 @@ class RideRequestController extends ChangeNotifier
         _getRideDetailUseCase = getRideDetailUseCase,
         _getRideEtaUseCase = getRideEtaUseCase,
         _issueRideRealtimeTokenUseCase = issueRideRealtimeTokenUseCase,
-        _cancelRideUseCase = cancelRideUseCase;
+        _cancelRideUseCase = cancelRideUseCase,
+        _updateRideRouteUseCase = updateRideRouteUseCase;
 
   final RideRequestArgs _args;
   final CreateRideQuoteUseCase _createRideQuoteUseCase;
@@ -46,6 +50,7 @@ class RideRequestController extends ChangeNotifier
   final GetRideEtaUseCase _getRideEtaUseCase;
   final IssueRideRealtimeTokenUseCase _issueRideRealtimeTokenUseCase;
   final CancelRideUseCase _cancelRideUseCase;
+  final UpdateRideRouteUseCase _updateRideRouteUseCase;
   Timer? _statusPollingTimer;
 
   RideRequestState _state = RideRequestState.initial();
@@ -150,6 +155,17 @@ class RideRequestController extends ChangeNotifier
     notifyListeners();
   }
 
+  Future<void> resumeTracking() async {
+    if (_state.stage == RideStage.confirming ||
+        _state.stage == RideStage.completed ||
+        _state.stage == RideStage.cancelled) {
+      return;
+    }
+    await _refreshRideStatus();
+    if (isDisposed || _isTerminalStatus(_state.rideStatus ?? '')) return;
+    _startStatusPolling();
+  }
+
   Future<void> cancelSearching() async {
     final rideId = _state.rideId;
     if (rideId == null || rideId.trim().isEmpty) {
@@ -188,6 +204,23 @@ class RideRequestController extends ChangeNotifier
     }
 
     notifyListeners();
+  }
+
+  Future<void> updateRoute({
+    RouteLocation? origin,
+    RouteLocation? destination,
+    List<RouteLocation>? stops,
+  }) async {
+    final rideId = _state.rideId;
+    if (rideId == null || rideId.trim().isEmpty) {
+      throw Exception('Não foi possível localizar a corrida atual.');
+    }
+    await _updateRideRouteUseCase.execute(
+      rideId: rideId,
+      origin: origin,
+      destination: destination,
+      stops: stops,
+    );
   }
 
   @override

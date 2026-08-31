@@ -14,6 +14,8 @@ class HomeActiveRideCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isSearching = activeRide.isSearching;
+
     return DecoratedBox(
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.97),
@@ -39,11 +41,19 @@ class HomeActiveRideCard extends StatelessWidget {
                     color: const Color(0xFFF2F4F7),
                     borderRadius: BorderRadius.circular(27),
                   ),
-                  child: const Icon(
-                    Icons.person_rounded,
-                    color: Color(0xFF98A2B3),
-                    size: 30,
-                  ),
+                  child: isSearching
+                      ? const Padding(
+                          padding: EdgeInsets.all(16),
+                          child: CircularProgressIndicator(
+                            color: Color(0xFFC92D7A),
+                            strokeWidth: 3,
+                          ),
+                        )
+                      : const Icon(
+                          Icons.person_rounded,
+                          color: Color(0xFF98A2B3),
+                          size: 30,
+                        ),
                 ),
                 const SizedBox(width: 14),
                 Expanded(
@@ -51,9 +61,11 @@ class HomeActiveRideCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        activeRide.driverName?.trim().isNotEmpty == true
-                            ? activeRide.driverName!
-                            : 'Motorista parceiro',
+                        isSearching
+                            ? 'Buscando motorista'
+                            : activeRide.driverName?.trim().isNotEmpty == true
+                                ? activeRide.driverName!
+                                : 'Motorista parceiro',
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 16,
                           fontWeight: FontWeight.w800,
@@ -62,7 +74,9 @@ class HomeActiveRideCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        activeRide.vehicleSummary ?? 'Veiculo a caminho',
+                        isSearching
+                            ? '${activeRide.product.name} • ${activeRide.product.etaLabel}'
+                            : activeRide.vehicleSummary ?? 'Veículo a caminho',
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
@@ -72,39 +86,41 @@ class HomeActiveRideCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          Icons.star_rounded,
-                          color: Color(0xFFC92D7A),
-                          size: 18,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          activeRide.driverRating?.toStringAsFixed(1) ?? '5.0',
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w800,
-                            color: const Color(0xFFC92D7A),
+                if (!isSearching)
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.star_rounded,
+                            color: Color(0xFFC92D7A),
+                            size: 18,
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      activeRide.statusLabel,
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: const Color(0xFF98A2B3),
+                          const SizedBox(width: 4),
+                          Text(
+                            activeRide.driverRating?.toStringAsFixed(1) ??
+                                '5.0',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w800,
+                              color: const Color(0xFFC92D7A),
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                  ],
-                ),
+                      const SizedBox(height: 4),
+                      Text(
+                        activeRide.statusLabel,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: const Color(0xFF98A2B3),
+                        ),
+                      ),
+                    ],
+                  ),
               ],
             ),
             const SizedBox(height: 18),
@@ -115,7 +131,7 @@ class HomeActiveRideCard extends StatelessWidget {
                 onPressed: onTap,
                 icon: const Icon(Icons.navigation_rounded, size: 22),
                 label: Text(
-                  'VOLTAR PARA A CORRIDA',
+                  isSearching ? 'ACOMPANHAR BUSCA' : 'VOLTAR PARA A CORRIDA',
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 16,
                     fontWeight: FontWeight.w800,

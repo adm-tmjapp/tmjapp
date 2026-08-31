@@ -23,9 +23,19 @@ class ForgotPasswordController extends ChangeNotifier
   }
 
   Future<void> submit() async {
-    if (_state.email.trim().isEmpty) {
+    final email = _state.email.trim().toLowerCase();
+
+    if (email.isEmpty) {
       _state = _state.copyWith(
         errorMessage: 'Informe o e-mail cadastrado.',
+      );
+      notifyListeners();
+      return;
+    }
+
+    if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email)) {
+      _state = _state.copyWith(
+        errorMessage: 'Informe um e-mail válido.',
       );
       notifyListeners();
       return;
@@ -39,7 +49,7 @@ class ForgotPasswordController extends ChangeNotifier
     notifyListeners();
 
     try {
-      await _requestPasswordResetUseCase(_state.email.trim());
+      await _requestPasswordResetUseCase(email);
       if (isDisposed) return;
       _state = _state.copyWith(
         isLoading: false,

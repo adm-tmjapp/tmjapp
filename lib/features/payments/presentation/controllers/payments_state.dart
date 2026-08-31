@@ -5,6 +5,7 @@ class PaymentsState {
     this.isLoading = true,
     this.totalSpent = 0,
     this.completedRides = 0,
+    this.balance = 0,
     this.methods = const [],
     this.errorMessage,
   });
@@ -12,6 +13,7 @@ class PaymentsState {
   final bool isLoading;
   final double totalSpent;
   final int completedRides;
+  final double balance;
   final List<PaymentMethodItem> methods;
   final String? errorMessage;
 
@@ -19,6 +21,7 @@ class PaymentsState {
     bool? isLoading,
     double? totalSpent,
     int? completedRides,
+    double? balance,
     List<PaymentMethodItem>? methods,
     String? errorMessage,
     bool clearError = false,
@@ -27,6 +30,7 @@ class PaymentsState {
       isLoading: isLoading ?? this.isLoading,
       totalSpent: totalSpent ?? this.totalSpent,
       completedRides: completedRides ?? this.completedRides,
+      balance: balance ?? this.balance,
       methods: methods ?? this.methods,
       errorMessage: clearError ? null : errorMessage ?? this.errorMessage,
     );

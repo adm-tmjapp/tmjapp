@@ -104,7 +104,12 @@ class HomeRemoteDataSource {
       final activeRide = data.whereType<Map<String, dynamic>>().firstWhere(
         (ride) {
           final status = (ride['status'] ?? '').toString().toLowerCase();
-          return status == 'accepted' || status == 'ongoing';
+          return status == 'pending' ||
+              status == 'searching' ||
+              status == 'searching_driver' ||
+              status == 'requested' ||
+              status == 'accepted' ||
+              status == 'ongoing';
         },
         orElse: () => const <String, dynamic>{},
       );
@@ -149,7 +154,13 @@ class HomeRemoteDataSource {
         ),
         licensePlate: _pickFirstString(
           vehicle,
-          const ['license_plate', 'plate', 'licensePlate', 'car_plate', 'carPlate'],
+          const [
+            'license_plate',
+            'plate',
+            'licensePlate',
+            'car_plate',
+            'carPlate'
+          ],
         ),
         paymentMethodLabel: activeRide['payment_method']?.toString(),
       );

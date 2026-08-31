@@ -42,6 +42,10 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   void _onStateChanged() {
     final state = _controller.state;
 
+    if (!state.didSend) {
+      _successShown = false;
+    }
+
     if (_emailController.text != state.email) {
       _emailController.text = state.email;
     }

@@ -11,6 +11,7 @@ import 'package:tmjapp/features/destination_search/domain/usecases/resolve_desti
 import 'package:tmjapp/features/destination_search/domain/usecases/search_places_usecase.dart';
 import 'package:tmjapp/features/favorites/presentation/controllers/add_favorite_address_controller.dart';
 import 'package:tmjapp/features/favorites/presentation/controllers/add_favorite_address_state.dart';
+import 'package:tmjapp/features/favorites/data/datasources/favorite_address_local_datasource.dart';
 
 class AddFavoriteAddressPage extends StatefulWidget {
   final String? initialLabel;
@@ -41,14 +42,28 @@ class _AddFavoriteAddressPageState extends State<AddFavoriteAddressPage> {
     _controller = AddFavoriteAddressController(
       searchPlacesUseCase: SearchPlacesUseCase(repository),
       resolveDestinationUseCase: ResolveDestinationUseCase(repository),
+      favoriteAddressLocalDataSource: FavoriteAddressLocalDataSource(),
     );
     _searchController = TextEditingController();
     _aliasController = TextEditingController();
 
     // Auto-select label if initialLabel is provided
     if (widget.initialLabel != null && widget.initialLabel!.isNotEmpty) {
-      _controller.setLabel(widget.initialLabel!);
+      _loadInitialFavorite(widget.initialLabel!);
     }
+  }
+
+  Future<void> _loadInitialFavorite(String label) async {
+    await _controller.loadFavorite(label);
+    if (!mounted) return;
+    final location = _controller.state.selectedLocation;
+    if (location == null) return;
+    _searchController.text = location.title;
+    _mapController?.animateCamera(
+      CameraUpdate.newLatLng(
+        LatLng(location.latitude, location.longitude),
+      ),
+    );
   }
 
   @override
@@ -73,6 +88,7 @@ class _AddFavoriteAddressPageState extends State<AddFavoriteAddressPage> {
 
   Future<void> _handleSaveFavorite() async {
     await _controller.saveFavorite();
+    if (!mounted) return;
 
     final state = _controller.state;
     if (state.successMessage != null && state.successMessage!.isNotEmpty) {
@@ -81,7 +97,7 @@ class _AddFavoriteAddressPageState extends State<AddFavoriteAddressPage> {
       );
       await Future<void>.delayed(const Duration(milliseconds: 350));
       if (!mounted) return;
-      Navigator.of(context).pushReplacementNamed(AppRoutes.dashboard);
+      Navigator.of(context).pop(true);
     }
   }
 

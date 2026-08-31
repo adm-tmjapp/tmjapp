@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -13,6 +15,7 @@ import 'package:tmjapp/features/home/data/repositories/home_repository_impl.dart
 import 'package:tmjapp/features/home/domain/entities/home_location.dart';
 import 'package:tmjapp/features/home/domain/usecases/build_trip_preview_usecase.dart';
 import 'package:tmjapp/features/ride_request/data/datasources/ride_request_remote_datasource.dart';
+import 'package:tmjapp/features/ride_request/data/datasources/ride_confirmation_draft_local_datasource.dart';
 import 'package:tmjapp/features/ride_request/data/repositories/ride_request_repository_impl.dart';
 
 import 'package:tmjapp/features/ride_request/domain/entities/ride_payment_method.dart';
@@ -28,8 +31,11 @@ import 'package:tmjapp/features/ride_request/domain/usecases/get_ride_eta_usecas
 import 'package:tmjapp/features/ride_request/domain/usecases/get_ride_payment_options_usecase.dart';
 import 'package:tmjapp/features/ride_request/domain/usecases/get_ride_status_usecase.dart';
 import 'package:tmjapp/features/ride_request/domain/usecases/issue_ride_realtime_token_usecase.dart';
+import 'package:tmjapp/features/ride_request/domain/usecases/update_ride_route_usecase.dart';
 import 'package:tmjapp/features/ride_request/presentation/controllers/ride_request_controller.dart';
 import 'package:tmjapp/features/ride_request/presentation/controllers/ride_request_state.dart';
+import 'package:tmjapp/features/ride_request/presentation/services/ride_background_notification.dart';
+import 'package:tmjapp/features/ride_request/presentation/utils/ride_vehicle_visuals.dart';
 import 'package:tmjapp/features/ride_request/presentation/widgets/ride_confirm_sheet.dart';
 import 'package:tmjapp/features/ride_request/presentation/widgets/ride_driver_assigned_sheet.dart';
 import 'package:tmjapp/features/ride_request/presentation/widgets/ride_searching_sheet.dart';
@@ -54,16 +60,38 @@ class RideRequestPage extends StatefulWidget {
   State<RideRequestPage> createState() => _RideRequestPageState();
 }
 
-class _RideRequestPageState extends State<RideRequestPage> {
+class _RideRequestPageState extends State<RideRequestPage>
+    with WidgetsBindingObserver {
+  static const double _vehicleMarkerLogicalSize = 44;
+  static const double _searchRadarRadiusMeters = 360;
+
   late final RideRequestController _controller;
   GoogleMapController? _mapController;
   String? _lastErrorMessage;
   List<HomeLocation> _approachRoutePoints = const [];
   String? _lastApproachRouteKey;
+  final RideConfirmationDraftLocalDataSource _draftLocalDataSource =
+      RideConfirmationDraftLocalDataSource();
+  final RideBackgroundNotification _backgroundNotification =
+      RideBackgroundNotification();
+  bool _draftCleared = false;
+  BitmapDescriptor? _carMarkerIcon;
+  BitmapDescriptor? _motorcycleMarkerIcon;
+  late RouteLocation _origin;
+  late RouteLocation _destination;
+  late List<HomeLocation> _routePoints;
+  List<RouteLocation> _stops = const [];
+  bool _isUpdatingRoute = false;
 
   @override
   void initState() {
     super.initState();
+    _origin = widget.args.origin;
+    _destination = widget.args.destination;
+    _routePoints = widget.args.routePoints;
+    WidgetsBinding.instance.addObserver(this);
+    unawaited(_loadVehicleMarkerIcons());
+    _backgroundNotification.requestPermission();
     final repository = RideRequestRepositoryImpl(
       remoteDataSource: RideRequestRemoteDataSource(),
     );
@@ -78,13 +106,28 @@ class _RideRequestPageState extends State<RideRequestPage> {
       getRideEtaUseCase: GetRideEtaUseCase(repository),
       issueRideRealtimeTokenUseCase: IssueRideRealtimeTokenUseCase(repository),
       cancelRideUseCase: CancelRideUseCase(repository),
+      updateRideRouteUseCase: UpdateRideRouteUseCase(repository),
     )..addListener(_onStateChanged);
 
+    if (!widget.args.hasExistingRide) {
+      unawaited(_saveConfirmationDraft());
+    } else {
+      _draftCleared = true;
+    }
     _controller.initialize();
+  }
+
+  Future<void> _saveConfirmationDraft() async {
+    try {
+      await _draftLocalDataSource.save(widget.args);
+    } catch (_) {
+      _draftCleared = true;
+    }
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _mapController?.dispose();
     _controller
       ..removeListener(_onStateChanged)
@@ -92,7 +135,43 @@ class _RideRequestPageState extends State<RideRequestPage> {
     super.dispose();
   }
 
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _backgroundNotification.cancel();
+      _controller.resumeTracking();
+    } else if ((state == AppLifecycleState.paused ||
+            state == AppLifecycleState.hidden) &&
+        ModalRoute.of(context)?.isCurrent == true) {
+      _showBackgroundNotification();
+    }
+  }
+
+  void _showBackgroundNotification() {
+    final state = _controller.state;
+    if (state.stage == RideStage.completed ||
+        state.stage == RideStage.cancelled) {
+      _backgroundNotification.cancel();
+      return;
+    }
+    final isConfirming = state.stage == RideStage.confirming;
+    _backgroundNotification.show(
+      title: isConfirming ? 'Continue sua corrida' : state.statusTitle,
+      message: isConfirming
+          ? 'Toque para escolher o veículo e confirmar a solicitação.'
+          : 'Toque para voltar ao acompanhamento da corrida.',
+    );
+  }
+
   void _onStateChanged() {
+    if (_controller.state.stage == RideStage.completed ||
+        _controller.state.stage == RideStage.cancelled) {
+      _backgroundNotification.cancel();
+    }
+    if (!_draftCleared && _controller.state.stage != RideStage.confirming) {
+      _draftCleared = true;
+      unawaited(_draftLocalDataSource.clear());
+    }
     final errorMessage = _controller.state.errorMessage;
     if (errorMessage != null &&
         errorMessage.isNotEmpty &&
@@ -113,20 +192,32 @@ class _RideRequestPageState extends State<RideRequestPage> {
 
   Set<Marker> _buildMarkers() {
     final state = _controller.state;
+    final isSearchingDriver = state.stage == RideStage.searchingDriver;
+    final selectedProductName = state.selectedProduct?.name ?? '';
+    final vehicleMarkerIcon = RideVehicleVisuals.isMotorcycle(
+      selectedProductName,
+    )
+        ? _motorcycleMarkerIcon
+        : _carMarkerIcon;
+    final showVehicleMarker = isSearchingDriver && vehicleMarkerIcon != null;
     final markers = <Marker>{
       Marker(
         markerId: const MarkerId('origin'),
         position: LatLng(
-          widget.args.origin.latitude,
-          widget.args.origin.longitude,
+          _origin.latitude,
+          _origin.longitude,
         ),
-        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRose),
+        icon: showVehicleMarker
+            ? vehicleMarkerIcon
+            : BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRose),
+        anchor:
+            showVehicleMarker ? const Offset(0.5, 0.5) : const Offset(0.5, 1),
       ),
       Marker(
         markerId: const MarkerId('destination'),
         position: LatLng(
-          widget.args.destination.latitude,
-          widget.args.destination.longitude,
+          _destination.latitude,
+          _destination.longitude,
         ),
         icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
       ),
@@ -147,14 +238,94 @@ class _RideRequestPageState extends State<RideRequestPage> {
       );
     }
 
+    for (var index = 0; index < _stops.length; index++) {
+      final stop = _stops[index];
+      markers.add(
+        Marker(
+          markerId: MarkerId('stop-$index'),
+          position: LatLng(stop.latitude, stop.longitude),
+          icon: BitmapDescriptor.defaultMarkerWithHue(
+            BitmapDescriptor.hueOrange,
+          ),
+          infoWindow: InfoWindow(
+            title: 'Parada ${index + 1}',
+            snippet: stop.title,
+          ),
+        ),
+      );
+    }
+
     return markers;
+  }
+
+  Future<void> _loadVehicleMarkerIcons() async {
+    final icons = await Future.wait([
+      _createVehicleMarkerIcon(Icons.directions_car_rounded),
+      _createVehicleMarkerIcon(Icons.two_wheeler),
+    ]);
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _carMarkerIcon = icons[0];
+      _motorcycleMarkerIcon = icons[1];
+    });
+  }
+
+  Future<BitmapDescriptor> _createVehicleMarkerIcon(IconData icon) async {
+    const imageSize = 120.0;
+    const markerRadius = 48.0;
+    const brandColor = Color(0xFFC92D7A);
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+    const center = Offset(imageSize / 2, imageSize / 2);
+
+    canvas.drawCircle(
+      center.translate(0, 4),
+      markerRadius,
+      Paint()..color = Colors.black.withValues(alpha: 0.18),
+    );
+    canvas.drawCircle(center, markerRadius, Paint()..color = Colors.white);
+    canvas.drawCircle(
+      center,
+      markerRadius - 6,
+      Paint()..color = brandColor,
+    );
+
+    final iconPainter = TextPainter(
+      text: TextSpan(
+        text: String.fromCharCode(icon.codePoint),
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: 64,
+          fontFamily: icon.fontFamily,
+          package: icon.fontPackage,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    iconPainter.paint(
+      canvas,
+      center - Offset(iconPainter.width / 2, iconPainter.height / 2),
+    );
+
+    final image = await recorder.endRecording().toImage(
+          imageSize.toInt(),
+          imageSize.toInt(),
+        );
+    final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+    return BitmapDescriptor.bytes(
+      byteData!.buffer.asUint8List(),
+      width: _vehicleMarkerLogicalSize,
+      height: _vehicleMarkerLogicalSize,
+    );
   }
 
   Set<Polyline> _buildPolylines() {
     final points = _controller.state.stage == RideStage.driverAssigned &&
             _approachRoutePoints.isNotEmpty
         ? _approachRoutePoints
-        : widget.args.routePoints;
+        : _routePoints;
 
     if (points.isEmpty) {
       return const {};
@@ -184,10 +355,10 @@ class _RideRequestPageState extends State<RideRequestPage> {
         Circle(
           circleId: const CircleId('radar_circle'),
           center: LatLng(
-            widget.args.origin.latitude,
-            widget.args.origin.longitude,
+            _origin.latitude,
+            _origin.longitude,
           ),
-          radius: 800,
+          radius: _searchRadarRadiusMeters,
           fillColor: const Color(0xFFC92D7A).withOpacity(0.12),
           strokeColor: const Color(0xFFC92D7A).withOpacity(0.4),
           strokeWidth: 2,
@@ -209,7 +380,7 @@ class _RideRequestPageState extends State<RideRequestPage> {
     final points = _controller.state.stage == RideStage.driverAssigned &&
             _approachRoutePoints.isNotEmpty
         ? _approachRoutePoints
-        : widget.args.routePoints;
+        : _routePoints;
     if (_mapController == null || points.isEmpty) {
       return;
     }
@@ -277,7 +448,7 @@ class _RideRequestPageState extends State<RideRequestPage> {
     }
 
     final routeKey =
-        '${state.driverLatitude},${state.driverLongitude}:${widget.args.origin.latitude},${widget.args.origin.longitude}';
+        '${state.driverLatitude},${state.driverLongitude}:${_origin.latitude},${_origin.longitude}';
     if (_lastApproachRouteKey == routeKey) return;
 
     _lastApproachRouteKey = routeKey;
@@ -289,7 +460,7 @@ class _RideRequestPageState extends State<RideRequestPage> {
           latitude: state.driverLatitude!,
           longitude: state.driverLongitude!,
         ),
-        destination: widget.args.origin,
+        destination: _origin,
       );
       if (!mounted) return;
       setState(() => _approachRoutePoints = route);
@@ -364,8 +535,8 @@ class _RideRequestPageState extends State<RideRequestPage> {
     final distanceKm = _distanceBetween(
       state.driverLatitude!,
       state.driverLongitude!,
-      widget.args.origin.latitude,
-      widget.args.origin.longitude,
+      _origin.latitude,
+      _origin.longitude,
     );
     return distanceKm <= 0.08;
   }
@@ -446,13 +617,12 @@ class _RideRequestPageState extends State<RideRequestPage> {
         builder: (_) => LocationPickerPage(
           title: 'Alterar local de partida',
           hintText: 'Digite o endereço de partida',
-          initialQuery: widget.args.origin.title,
+          initialQuery: _origin.title,
         ),
       ),
     );
     if (selectedOrigin == null || !mounted) return;
-    await _replaceRideRequest(
-        origin: selectedOrigin, destination: widget.args.destination);
+    await _applyEditedRoute(origin: selectedOrigin);
   }
 
   Future<void> _editDestination() async {
@@ -461,13 +631,249 @@ class _RideRequestPageState extends State<RideRequestPage> {
         builder: (_) => LocationPickerPage(
           title: 'Alterar destino',
           hintText: 'Digite para onde você vai',
-          initialQuery: widget.args.destination.title,
+          initialQuery: _destination.title,
         ),
       ),
     );
     if (selectedDestination == null || !mounted) return;
-    await _replaceRideRequest(
-        origin: widget.args.origin, destination: selectedDestination);
+    await _applyEditedRoute(destination: selectedDestination);
+  }
+
+  Future<void> _applyEditedRoute({
+    RouteLocation? origin,
+    RouteLocation? destination,
+    List<RouteLocation>? stops,
+  }) async {
+    final nextOrigin = origin ?? _origin;
+    final nextDestination = destination ?? _destination;
+    final nextStops = stops ?? _stops;
+    if (_controller.state.stage == RideStage.confirming) {
+      await _replaceRideRequest(
+        origin: nextOrigin,
+        destination: nextDestination,
+      );
+      return;
+    }
+
+    if (_isUpdatingRoute) return;
+    setState(() => _isUpdatingRoute = true);
+    try {
+      final routePoints = await _buildRoutePointsThroughStops(
+        origin: nextOrigin,
+        destination: nextDestination,
+        stops: nextStops,
+      );
+      await _controller.updateRoute(
+        origin: origin,
+        destination: destination,
+        stops: stops,
+      );
+      if (!mounted) return;
+      setState(() {
+        _origin = nextOrigin;
+        _destination = nextDestination;
+        _routePoints = routePoints;
+        _stops = List.unmodifiable(nextStops);
+        _isUpdatingRoute = false;
+      });
+      _centerMap();
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(content: Text('Endereço atualizado com sucesso.')),
+        );
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _isUpdatingRoute = false);
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: Text(error.toString().replaceFirst('Exception: ', '')),
+          ),
+        );
+    }
+  }
+
+  Future<void> _addStop() async {
+    final stop = await Navigator.of(context).push<RouteLocation>(
+      MaterialPageRoute(
+        builder: (_) => const LocationPickerPage(
+          title: 'Adicionar parada',
+          hintText: 'Digite o endereço da parada',
+        ),
+      ),
+    );
+    if (stop == null || !mounted) return;
+    await _applyEditedRoute(stops: [..._stops, stop]);
+  }
+
+  Future<void> _editStop(int index) async {
+    final currentStop = _stops[index];
+    final stop = await Navigator.of(context).push<RouteLocation>(
+      MaterialPageRoute(
+        builder: (_) => LocationPickerPage(
+          title: 'Alterar parada',
+          hintText: 'Digite o endereço da parada',
+          initialQuery: currentStop.title,
+        ),
+      ),
+    );
+    if (stop == null || !mounted) return;
+    final updatedStops = [..._stops]..[index] = stop;
+    await _applyEditedRoute(stops: updatedStops);
+  }
+
+  Future<void> _removeStop(int index) async {
+    final updatedStops = [..._stops]..removeAt(index);
+    await _applyEditedRoute(stops: updatedStops);
+  }
+
+  Future<List<HomeLocation>> _buildRoutePointsThroughStops({
+    required RouteLocation origin,
+    required RouteLocation destination,
+    required List<RouteLocation> stops,
+  }) async {
+    final locations = [origin, ...stops, destination];
+    final route = <HomeLocation>[];
+    for (var index = 0; index < locations.length - 1; index++) {
+      final segment = await _buildRoutePoints(
+        origin: locations[index],
+        destination: locations[index + 1],
+      );
+      if (route.isNotEmpty && segment.isNotEmpty) {
+        route.addAll(segment.skip(1));
+      } else {
+        route.addAll(segment);
+      }
+    }
+    return route;
+  }
+
+  Future<void> _showEditAddressOptions() async {
+    if (_isUpdatingRoute) return;
+    final canEditOrigin = _controller.state.stage == RideStage.searchingDriver;
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => SafeArea(
+        child: Container(
+          margin: const EdgeInsets.all(12),
+          padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Editar endereço',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: const Color(0xFF101828),
+                ),
+              ),
+              const SizedBox(height: 8),
+              if (canEditOrigin)
+                ListTile(
+                  leading: const Icon(
+                    Icons.radio_button_checked_rounded,
+                    color: Color(0xFFC92D7A),
+                  ),
+                  title: const Text('Alterar local de partida'),
+                  subtitle: Text(
+                    _origin.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  trailing: const Icon(Icons.edit_rounded),
+                  onTap: () {
+                    Navigator.of(sheetContext).pop();
+                    _editOrigin();
+                  },
+                ),
+              ListTile(
+                leading: const Icon(
+                  Icons.location_on_rounded,
+                  color: Color(0xFFC92D7A),
+                ),
+                title: const Text('Alterar destino'),
+                subtitle: Text(
+                  _destination.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                trailing: const Icon(Icons.edit_rounded),
+                onTap: () {
+                  Navigator.of(sheetContext).pop();
+                  _editDestination();
+                },
+              ),
+              for (var index = 0; index < _stops.length; index++)
+                ListTile(
+                  leading: CircleAvatar(
+                    radius: 14,
+                    backgroundColor: const Color(0xFFFCE7F3),
+                    child: Text(
+                      '${index + 1}',
+                      style: const TextStyle(
+                        color: Color(0xFFC92D7A),
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                  title: Text('Parada ${index + 1}'),
+                  subtitle: Text(
+                    _stops[index].title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  onTap: () {
+                    Navigator.of(sheetContext).pop();
+                    _editStop(index);
+                  },
+                  trailing: IconButton(
+                    tooltip: 'Remover parada',
+                    icon: const Icon(Icons.close_rounded),
+                    onPressed: () {
+                      Navigator.of(sheetContext).pop();
+                      _removeStop(index);
+                    },
+                  ),
+                ),
+              const Divider(),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: _stops.length >= 3
+                      ? null
+                      : () {
+                          Navigator.of(sheetContext).pop();
+                          _addStop();
+                        },
+                  icon: const Icon(Icons.add_rounded),
+                  label: Text(
+                    _stops.length >= 3
+                        ? 'Limite de 3 paradas atingido'
+                        : 'Adicionar parada',
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFFC92D7A),
+                    side: const BorderSide(color: Color(0xFFC92D7A)),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _replaceRideRequest(
@@ -542,8 +948,7 @@ class _RideRequestPageState extends State<RideRequestPage> {
                 Positioned.fill(
                   child: GoogleMap(
                     initialCameraPosition: CameraPosition(
-                      target: LatLng(widget.args.origin.latitude,
-                          widget.args.origin.longitude),
+                      target: LatLng(_origin.latitude, _origin.longitude),
                       zoom: 12.8,
                     ),
                     onMapCreated: (controller) {
@@ -688,6 +1093,21 @@ class _RideRequestPageState extends State<RideRequestPage> {
                   ),
                 ),
 
+              if (state.stage == RideStage.searchingDriver ||
+                  state.stage == RideStage.driverAssigned ||
+                  state.stage == RideStage.rideInProgress)
+                Positioned(
+                  top: MediaQuery.of(context).padding.top + 90,
+                  left: 16,
+                  child: _MapFloatingButton(
+                    icon: _isUpdatingRoute
+                        ? Icons.hourglass_top_rounded
+                        : Icons.edit_rounded,
+                    onTap: _showEditAddressOptions,
+                    isAccent: true,
+                  ),
+                ),
+
               // --- ÁREA DAS SHEETS ---
               Positioned(
                 left: 0,
@@ -705,8 +1125,8 @@ class _RideRequestPageState extends State<RideRequestPage> {
                       bottom: true,
                       child: switch (state.stage) {
                         RideStage.confirming => RideConfirmSheet(
-                            origin: widget.args.origin,
-                            destination: widget.args.destination,
+                            origin: _origin,
+                            destination: _destination,
                             isLoading: state.isLoading,
                             products: state.products,
                             selectedProductIndex: state.selectedProductIndex,
@@ -733,7 +1153,7 @@ class _RideRequestPageState extends State<RideRequestPage> {
                             onCancel: _handleCancelRide,
                             canCancel: state.canCancel,
                             driverArrived: isDriverArrived,
-                            meetingPointAddress: widget.args.origin.title,
+                            meetingPointAddress: _origin.title,
                             onConfirmComing: () =>
                                 _showPendingActionMessage('Estou indo'),
                           ),
@@ -751,7 +1171,7 @@ class _RideRequestPageState extends State<RideRequestPage> {
                                 onCancel: _handleCancelRide,
                                 canCancel: state.canCancel,
                                 driverArrived: true,
-                                meetingPointAddress: widget.args.origin.title,
+                                meetingPointAddress: _origin.title,
                                 onConfirmComing: () =>
                                     _showPendingActionMessage('Estou indo'),
                               )
@@ -767,8 +1187,8 @@ class _RideRequestPageState extends State<RideRequestPage> {
                                     _showPendingActionMessage('Compartilhar'),
                               ),
                         RideStage.completed => RideFinishedSheet(
-                            originTitle: widget.args.origin.title,
-                            destinationTitle: widget.args.destination.title,
+                            originTitle: _origin.title,
+                            destinationTitle: _destination.title,
                             driverName: state.driverDisplayName,
                             finalPrice: selectedProduct?.estimatedPrice ?? 0.0,
                             paymentMethod: state.paymentSummary,
@@ -779,8 +1199,8 @@ class _RideRequestPageState extends State<RideRequestPage> {
                             onClearActiveRide: widget.onClearActiveRide,
                           ),
                         _ => RideSearchingSheet(
-                            origin: widget.args.origin,
-                            destination: widget.args.destination,
+                            origin: _origin,
+                            destination: _destination,
                             product: selectedProduct!,
                             paymentSummary: state.paymentSummary,
                             statusTitle: state.statusTitle,

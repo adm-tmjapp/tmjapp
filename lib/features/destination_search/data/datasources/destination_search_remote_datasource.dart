@@ -10,11 +10,76 @@ class DestinationSearchRemoteDataSource {
   DestinationSearchRemoteDataSource({
     Location? location,
     http.Client? client,
+    String? apiKey,
   })  : _location = location ?? Location(),
-        _client = client ?? http.Client();
+        _client = client ?? http.Client(),
+        _configuredApiKey = apiKey;
 
   final Location _location;
   final http.Client _client;
+  final String? _configuredApiKey;
+
+  String get _apiKey =>
+      _configuredApiKey ?? AppConfig.instance.googlePlacesApiKey;
+
+  String? _extractStreetNumber(String input) {
+    final match = RegExp(r'(?:,|\s)\s*(\d+[a-zA-Z]?(?:[-/]\d+)?)\s*$')
+        .firstMatch(input.trim());
+    return match?.group(1);
+  }
+
+  String _withTypedStreetNumber(String address, String input) {
+    final number = _extractStreetNumber(input);
+    if (number == null ||
+        RegExp('(?:^|\\D)${RegExp.escape(number)}(?:\\D|\$)')
+            .hasMatch(address)) {
+      return address;
+    }
+    return '$address, $number';
+  }
+
+  RouteLocation? _routeLocationFromResult(
+    Map<String, dynamic> result, {
+    required String typedAddress,
+  }) {
+    final geometry = result['geometry'] as Map<String, dynamic>? ?? const {};
+    final location = geometry['location'] as Map<String, dynamic>? ?? const {};
+    final latitude = (location['lat'] as num?)?.toDouble();
+    final longitude = (location['lng'] as num?)?.toDouble();
+    if (latitude == null || longitude == null) return null;
+
+    final components =
+        result['address_components'] as List<dynamic>? ?? const [];
+    String? route;
+    String? streetNumber;
+    for (final component in components.whereType<Map<String, dynamic>>()) {
+      final types = (component['types'] as List<dynamic>? ?? const [])
+          .whereType<String>();
+      if (types.contains('route')) {
+        route = component['long_name'] as String?;
+      }
+      if (types.contains('street_number')) {
+        streetNumber = component['long_name'] as String?;
+      }
+    }
+
+    streetNumber ??= _extractStreetNumber(typedAddress);
+    final formattedAddress =
+        (result['formatted_address'] as String? ?? '').trim();
+    final title = route?.trim().isNotEmpty == true
+        ? _withTypedStreetNumber(
+            streetNumber == null ? route! : '$route, $streetNumber',
+            typedAddress,
+          )
+        : _withTypedStreetNumber(formattedAddress, typedAddress);
+
+    return RouteLocation(
+      title: title,
+      subtitle: formattedAddress,
+      latitude: latitude,
+      longitude: longitude,
+    );
+  }
 
   Future<RouteLocation> getCurrentLocation() async {
     bool serviceEnabled = await _location.serviceEnabled();
@@ -42,7 +107,7 @@ class DestinationSearchRemoteDataSource {
       throw Exception('Não foi possível obter sua localização atual.');
     }
 
-    final apiKey = AppConfig.instance.googlePlacesApiKey;
+    final apiKey = _apiKey;
     final url = Uri.parse(
       'https://maps.googleapis.com/maps/api/geocode/json'
       '?latlng=$latitude,$longitude&key=$apiKey&language=pt-br',
@@ -74,7 +139,7 @@ class DestinationSearchRemoteDataSource {
       return const [];
     }
 
-    final apiKey = AppConfig.instance.googlePlacesApiKey;
+    final apiKey = _apiKey;
     final url = Uri.parse(
       'https://maps.googleapis.com/maps/api/place/autocomplete/json'
       '?input=${Uri.encodeComponent(trimmed)}'
@@ -91,23 +156,46 @@ class DestinationSearchRemoteDataSource {
 
     return predictions.map((prediction) {
       final item = prediction as Map<String, dynamic>;
-      final terms = item['terms'] as List<dynamic>? ?? const [];
-      final title = terms.isNotEmpty
-          ? (terms.first as Map<String, dynamic>)['value'] as String? ??
-              (item['description'] as String? ?? '')
-          : (item['description'] as String? ?? '');
+      final structured =
+          item['structured_formatting'] as Map<String, dynamic>? ?? const {};
+      final rawTitle = structured['main_text'] as String? ??
+          item['description'] as String? ??
+          '';
 
       return PlaceSuggestion(
-        title: title,
-        subtitle:
-            item['structured_formatting']?['secondary_text'] as String? ?? '',
+        title: _withTypedStreetNumber(rawTitle, trimmed),
+        subtitle: structured['secondary_text'] as String? ?? '',
         placeId: item['place_id'] as String? ?? '',
+        query: trimmed,
       );
     }).toList();
   }
 
   Future<RouteLocation> getPlaceDetails(PlaceSuggestion suggestion) async {
-    final apiKey = AppConfig.instance.googlePlacesApiKey;
+    final apiKey = _apiKey;
+    final typedNumber = _extractStreetNumber(suggestion.query);
+
+    if (typedNumber != null) {
+      final geocodeUrl = Uri.parse(
+        'https://maps.googleapis.com/maps/api/geocode/json'
+        '?address=${Uri.encodeComponent(suggestion.query)}'
+        '&key=$apiKey&language=pt-br&components=country:BR',
+      );
+      final geocodeResponse = await _client.get(geocodeUrl);
+      if (geocodeResponse.statusCode == 200) {
+        final geocodeData =
+            jsonDecode(geocodeResponse.body) as Map<String, dynamic>;
+        final results = geocodeData['results'] as List<dynamic>? ?? const [];
+        if (results.isNotEmpty) {
+          final resolved = _routeLocationFromResult(
+            results.first as Map<String, dynamic>,
+            typedAddress: suggestion.query,
+          );
+          if (resolved != null) return resolved;
+        }
+      }
+    }
+
     final url = Uri.parse(
       'https://maps.googleapis.com/maps/api/place/details/json'
       '?place_id=${suggestion.placeId}&key=$apiKey&language=pt-br',
@@ -120,20 +208,14 @@ class DestinationSearchRemoteDataSource {
 
     final data = jsonDecode(response.body) as Map<String, dynamic>;
     final result = data['result'] as Map<String, dynamic>? ?? const {};
-    final geometry = result['geometry'] as Map<String, dynamic>? ?? const {};
-    final location = geometry['location'] as Map<String, dynamic>? ?? const {};
-    final latitude = (location['lat'] as num?)?.toDouble();
-    final longitude = (location['lng'] as num?)?.toDouble();
-
-    if (latitude == null || longitude == null) {
+    final resolved = _routeLocationFromResult(
+      result,
+      typedAddress:
+          suggestion.query.isEmpty ? suggestion.title : suggestion.query,
+    );
+    if (resolved == null) {
       throw Exception('Não foi possível resolver esse endereço.');
     }
-
-    return RouteLocation(
-      title: suggestion.title,
-      subtitle: suggestion.subtitle,
-      latitude: latitude,
-      longitude: longitude,
-    );
+    return resolved;
   }
 }

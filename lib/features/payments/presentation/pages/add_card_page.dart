@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:tmjapp/features/payments/domain/entities/payment_method_item.dart';
 
 // Cores baseadas no seu layout
 const Color _primaryPink = Color(0xFFB1226B);
@@ -8,8 +9,22 @@ const Color _textDark = Color(0xFF1D2939);
 const Color _textLight = Color(0xFF667085);
 const Color _bgLight = Color(0xFFF9FAFB);
 
+class CardFormResult {
+  const CardFormResult({
+    required this.cardNumberDigits,
+    required this.holderName,
+    required this.expiry,
+  });
+
+  final String cardNumberDigits;
+  final String holderName;
+  final String expiry;
+}
+
 class AddCardPage extends StatefulWidget {
-  const AddCardPage({super.key});
+  const AddCardPage({super.key, this.card});
+
+  final PaymentMethodItem? card;
 
   @override
   State<AddCardPage> createState() => _AddCardPageState();
@@ -22,6 +37,15 @@ class _AddCardPageState extends State<AddCardPage> {
   final _expiryController = TextEditingController();
   final _cvvController = TextEditingController();
 
+  bool get _isEditing => widget.card != null;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController.text = widget.card?.holderName ?? '';
+    _expiryController.text = widget.card?.expiry ?? '';
+  }
+
   @override
   void dispose() {
     _cardNumberController.dispose();
@@ -33,11 +57,14 @@ class _AddCardPageState extends State<AddCardPage> {
 
   void _onSave() {
     if (_formKey.currentState!.validate()) {
-      // Aqui você integraria com o seu Controller para criptografar/salvar o cartão
-      // Exemplo: _controller.saveCreditCard(number, name, expiry, cvv);
-
-      // Simulando sucesso e retornando para a tela anterior
-      Navigator.of(context).pop(true);
+      final digits = _cardNumberController.text.replaceAll(RegExp(r'\D'), '');
+      Navigator.of(context).pop(
+        CardFormResult(
+          cardNumberDigits: digits,
+          holderName: _nameController.text.trim().toUpperCase(),
+          expiry: _expiryController.text,
+        ),
+      );
     }
   }
 
@@ -55,7 +82,7 @@ class _AddCardPageState extends State<AddCardPage> {
         ),
         centerTitle: true,
         title: Text(
-          'Adicionar Cartão',
+          _isEditing ? 'Editar Cartão' : 'Adicionar Cartão',
           style: GoogleFonts.plusJakartaSans(
             color: _textDark,
             fontWeight: FontWeight.w800,
@@ -70,7 +97,9 @@ class _AddCardPageState extends State<AddCardPage> {
             padding: const EdgeInsets.all(24.0),
             children: [
               Text(
-                'Detalhes do Cartão',
+                _isEditing
+                    ? 'Atualize os dados do cartão'
+                    : 'Detalhes do Cartão',
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 20,
                   fontWeight: FontWeight.w800,
@@ -79,7 +108,9 @@ class _AddCardPageState extends State<AddCardPage> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Insira as informações do seu cartão de crédito ou débito para salvá-lo com segurança.',
+                _isEditing
+                    ? 'Altere o titular ou a validade. Preencha o número somente para substituir o cartão.'
+                    : 'Insira as informações do seu cartão de crédito ou débito para salvá-lo com segurança.',
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
@@ -93,7 +124,9 @@ class _AddCardPageState extends State<AddCardPage> {
               _CustomTextField(
                 controller: _cardNumberController,
                 label: 'Número do Cartão',
-                hint: '0000 0000 0000 0000',
+                hint: _isEditing
+                    ? '•••• •••• •••• ${widget.card!.last4}'
+                    : '0000 0000 0000 0000',
                 keyboardType: TextInputType.number,
                 maxLength: 19, // 16 dígitos + 3 espaços
                 inputFormatters: [
@@ -101,7 +134,13 @@ class _AddCardPageState extends State<AddCardPage> {
                   _CardNumberFormatter(),
                 ],
                 validator: (value) {
-                  if (value == null || value.length < 19) {
+                  if (!_isEditing && (value == null || value.length < 19)) {
+                    return 'Insira um número de cartão válido';
+                  }
+                  if (_isEditing &&
+                      value != null &&
+                      value.isNotEmpty &&
+                      value.length < 19) {
                     return 'Insira um número de cartão válido';
                   }
                   return null;
@@ -159,7 +198,13 @@ class _AddCardPageState extends State<AddCardPage> {
                         FilteringTextInputFormatter.digitsOnly,
                       ],
                       validator: (value) {
-                        if (value == null || value.length < 3) {
+                        if (!_isEditing &&
+                            (value == null || value.length < 3)) {
+                          return 'CVV inválido';
+                        }
+                        if (_isEditing &&
+                            _cardNumberController.text.isNotEmpty &&
+                            (value == null || value.length < 3)) {
                           return 'CVV inválido';
                         }
                         return null;
@@ -184,7 +229,7 @@ class _AddCardPageState extends State<AddCardPage> {
                     elevation: 0,
                   ),
                   child: Text(
-                    'Salvar Cartão',
+                    _isEditing ? 'Salvar Alterações' : 'Salvar Cartão',
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 16,
                       fontWeight: FontWeight.w800,

@@ -14,7 +14,10 @@ class ApiResponseModel<T> {
   String? get errorCode => _response!.statusCode.toString();
   String? get message => _response!.reasonPhrase;
 
-  bool get ok => _response != null && _response!.statusCode == 200;
+  bool get ok =>
+      _response != null &&
+      _response!.statusCode >= 200 &&
+      _response!.statusCode < 300;
   bool get badRequest =>
       _response != null &&
       _response!.statusCode >= 400 &&
@@ -30,7 +33,8 @@ class ApiResponseModel<T> {
     String message = getStatusMessage(statusCode);
 
     if (kDebugMode) {
-      print("$statusCode $message ${response.request!.url}");
+      final requestUrl = response.request?.url;
+      print('$statusCode $message${requestUrl == null ? '' : ' $requestUrl'}');
     }
   }
 

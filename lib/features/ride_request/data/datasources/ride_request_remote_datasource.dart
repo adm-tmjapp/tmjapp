@@ -155,6 +155,56 @@ class RideRequestRemoteDataSource {
     );
   }
 
+  Future<void> updateRideRoute({
+    required String rideId,
+    RouteLocation? origin,
+    RouteLocation? destination,
+    List<RouteLocation>? stops,
+  }) async {
+    if (origin == null && destination == null && stops == null) return;
+
+    final response = await _baseApi.patch(
+      Uri.parse('v2/passenger/rides/$rideId'),
+      body: {
+        if (origin != null)
+          'pickup_location': {
+            'address': origin.title,
+            'coordinates': {
+              'latitude': origin.latitude,
+              'longitude': origin.longitude,
+            },
+          },
+        if (destination != null)
+          'destination_location': {
+            'address': destination.title,
+            'coordinates': {
+              'latitude': destination.latitude,
+              'longitude': destination.longitude,
+            },
+          },
+        if (stops != null)
+          'stops': stops
+              .map(
+                (stop) => {
+                  'address': stop.title,
+                  'coordinates': {
+                    'latitude': stop.latitude,
+                    'longitude': stop.longitude,
+                  },
+                },
+              )
+              .toList(),
+      },
+    );
+
+    if (response.statusCode != 200 && response.statusCode != 204) {
+      throw Exception(_extractErrorMessage(
+        response.body,
+        fallback: 'Não foi possível atualizar o endereço da corrida.',
+      ));
+    }
+  }
+
   Future<RidePaymentOptionsResult> getRidePaymentOptions(String rideId) async {
     try {
       final optionsResponse = await _baseApi.get(

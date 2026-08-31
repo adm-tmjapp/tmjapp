@@ -53,6 +53,9 @@ class AuthRemoteDataSource {
     if (response.hasException) {
       throw Exception(response.exceptionMessage);
     }
+    if (!response.ok) {
+      throw Exception('Não foi possível enviar o e-mail de recuperação.');
+    }
   }
 
   Future<void> verifyPasswordResetCode({

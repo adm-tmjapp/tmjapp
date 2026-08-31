@@ -49,6 +49,21 @@ class RideRequestRepositoryImpl implements RideRequestRepository {
   }
 
   @override
+  Future<void> updateRideRoute({
+    required String rideId,
+    RouteLocation? origin,
+    RouteLocation? destination,
+    List<RouteLocation>? stops,
+  }) {
+    return _remoteDataSource.updateRideRoute(
+      rideId: rideId,
+      origin: origin,
+      destination: destination,
+      stops: stops,
+    );
+  }
+
+  @override
   Future<RidePaymentOptionsResult> getRidePaymentOptions(String rideId) {
     return _remoteDataSource.getRidePaymentOptions(rideId);
   }

@@ -48,11 +48,12 @@ class HomeState {
     HomeLocation? currentLocation,
     bool clearErrorMessage = false,
     bool clearRoute = false,
+    bool clearActiveRide = false,
   }) {
     return HomeState(
       profile: profile ?? this.profile,
       drivers: drivers ?? this.drivers,
-      activeRide: activeRide ?? this.activeRide,
+      activeRide: clearActiveRide ? null : (activeRide ?? this.activeRide),
       routePoints: clearRoute ? const [] : (routePoints ?? this.routePoints),
       isLoading: isLoading ?? this.isLoading,
       isPreviewingRoute: isPreviewingRoute ?? this.isPreviewingRoute,

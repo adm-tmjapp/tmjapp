@@ -13,6 +13,9 @@ import 'package:tmjapp/features/home/domain/usecases/build_trip_preview_usecase.
 import 'package:tmjapp/features/home/domain/usecases/load_home_data_usecase.dart';
 import 'package:tmjapp/features/home/presentation/controllers/home_controller.dart';
 import 'package:tmjapp/features/home/presentation/widgets/home_active_ride_card.dart';
+import 'package:tmjapp/features/home/presentation/widgets/home_ride_continuation_card.dart';
+import 'package:tmjapp/features/ride_request/data/datasources/ride_confirmation_draft_local_datasource.dart';
+import 'package:tmjapp/features/ride_request/presentation/services/ride_background_notification.dart';
 import 'package:tmjapp/features/ride_request/domain/entities/ride_request_args.dart';
 import 'package:tmjapp/features/ride_request/presentation/pages/ride_request_page.dart';
 import 'package:tmjapp/screens/dashboard/notifications_screen.dart';
@@ -35,15 +38,22 @@ class DashboardPage extends StatefulWidget {
   State<DashboardPage> createState() => _DashboardPageState();
 }
 
-class _DashboardPageState extends State<DashboardPage> {
+class _DashboardPageState extends State<DashboardPage>
+    with WidgetsBindingObserver {
   late final HomeController _controller;
   late final TextEditingController _fromController;
   late final TextEditingController _toController;
   GoogleMapController? _mapController;
+  final RideConfirmationDraftLocalDataSource _draftLocalDataSource =
+      RideConfirmationDraftLocalDataSource();
+  final RideBackgroundNotification _backgroundNotification =
+      RideBackgroundNotification();
+  RideRequestArgs? _confirmationDraft;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _fromController = TextEditingController();
     _toController = TextEditingController();
 
@@ -56,15 +66,47 @@ class _DashboardPageState extends State<DashboardPage> {
       loadHomeDataUseCase: LoadHomeDataUseCase(repository),
       buildTripPreviewUseCase: BuildTripPreviewUseCase(repository),
     )..initialize();
+    _loadConfirmationDraft();
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _mapController?.dispose();
     _controller.dispose();
     _fromController.dispose();
     _toController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _backgroundNotification.cancel();
+      _controller.initialize();
+      _loadConfirmationDraft();
+    } else if ((state == AppLifecycleState.paused ||
+            state == AppLifecycleState.hidden) &&
+        ModalRoute.of(context)?.isCurrent == true) {
+      final activeRide = _controller.state.activeRide;
+      if (activeRide != null) {
+        _backgroundNotification.show(
+          title: activeRide.statusLabel,
+          message: 'Toque para voltar ao acompanhamento da corrida.',
+        );
+      } else if (_confirmationDraft != null) {
+        _backgroundNotification.show(
+          title: 'Continue sua corrida',
+          message: 'Toque para escolher o veículo e confirmar a solicitação.',
+        );
+      }
+    }
+  }
+
+  Future<void> _loadConfirmationDraft() async {
+    final draft = await _draftLocalDataSource.load();
+    if (!mounted) return;
+    setState(() => _confirmationDraft = draft);
   }
 
   // --- MÉTODOS DE LÓGICA MANTIDOS INTACTOS ---
@@ -169,6 +211,9 @@ class _DashboardPageState extends State<DashboardPage> {
         ),
       ),
     );
+    if (mounted) {
+      await _loadConfirmationDraft();
+    }
     _controller.clearTripPreview();
     if (mounted) {
       await _controller.initialize();
@@ -183,12 +228,18 @@ class _DashboardPageState extends State<DashboardPage> {
     }
   }
 
-  void _openAddFavoriteAddress(String label) {
-    Navigator.of(context).push(
+  Future<void> _openAddFavoriteAddress(String label) async {
+    final didSave = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
         builder: (_) => AddFavoriteAddressPage(initialLabel: label),
       ),
     );
+    if (!mounted || didSave != true) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(content: Text('Endereço de $label atualizado.')),
+      );
   }
 
   Future<void> _resumeActiveRide() async {
@@ -230,6 +281,20 @@ class _DashboardPageState extends State<DashboardPage> {
       ),
     );
     _controller.clearTripPreview();
+    if (!mounted) return;
+    await _controller.initialize();
+  }
+
+  Future<void> _resumeConfirmationDraft() async {
+    final draft = _confirmationDraft;
+    if (draft == null) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => RideRequestPage(args: draft),
+      ),
+    );
+    if (!mounted) return;
+    await _loadConfirmationDraft();
     if (!mounted) return;
     await _controller.initialize();
   }
@@ -327,8 +392,15 @@ class _DashboardPageState extends State<DashboardPage> {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final horizontalPadding = screenWidth < 360 ? 12.0 : 20.0;
+
     return Scaffold(
       backgroundColor: Colors.white,
+      bottomNavigationBar: _CustomBottomNavBar(
+        currentIndex: 0,
+        onTap: _handleBottomNavigation,
+      ),
       body: AnimatedBuilder(
         animation: _controller,
         builder: (context, _) {
@@ -337,7 +409,7 @@ class _DashboardPageState extends State<DashboardPage> {
 
           // AQUI: Simulando a variável de dívida.
           // Troque pelo valor real vindo do seu state, por exemplo: state.pendingDebt
-          final double? pendingDebt = // Local de teste para saldo devedor
+          const double? pendingDebt = // Local de teste para saldo devedor
               null; // Defina como null quando não houver dívida
 
           return Stack(
@@ -420,7 +492,12 @@ class _DashboardPageState extends State<DashboardPage> {
                 child: SafeArea(
                   bottom: false,
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                    padding: EdgeInsets.fromLTRB(
+                      horizontalPadding,
+                      16,
+                      horizontalPadding,
+                      0,
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -463,6 +540,11 @@ class _DashboardPageState extends State<DashboardPage> {
                             activeRide: state.activeRide!,
                             onTap: _resumeActiveRide,
                           )
+                        else if (_confirmationDraft != null)
+                          HomeRideContinuationCard(
+                            draft: _confirmationDraft!,
+                            onTap: _resumeConfirmationDraft,
+                          )
                         else ...[
                           _SearchBar(onTap: _openTripPlanner),
 
@@ -494,8 +576,8 @@ class _DashboardPageState extends State<DashboardPage> {
 
               // 4. CONTROLES DO MAPA (Direita)
               Positioned(
-                right: 20,
-                bottom: 170, // Fica acima do card promocional
+                right: horizontalPadding,
+                bottom: state.activeRide == null ? 112 : 16,
                 child: Column(
                   children: [
                     _MapZoomControls(
@@ -526,9 +608,9 @@ class _DashboardPageState extends State<DashboardPage> {
               // 5. CARD PROMOCIONAL
               if (state.activeRide == null)
                 Positioned(
-                  left: 20,
-                  right: 20,
-                  bottom: 86, // Fica logo acima da Bottom Navigation
+                  left: horizontalPadding,
+                  right: horizontalPadding,
+                  bottom: 16,
                   child: _PromoCard(
                     onTap: () {
                       Navigator.of(context)
@@ -537,23 +619,12 @@ class _DashboardPageState extends State<DashboardPage> {
                   ),
                 ),
 
-              // 6. BOTTOM NAVIGATION (Rodapé)
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                child: _CustomBottomNavBar(
-                  currentIndex: 0,
-                  onTap: _handleBottomNavigation,
-                ),
-              ),
-
-              // 7. MENSAGEM DE ERRO (Se houver)
+              // 6. MENSAGEM DE ERRO (Se houver)
               if (state.errorMessage != null && state.errorMessage!.isNotEmpty)
                 Positioned(
-                  left: 20,
-                  right: 20,
-                  bottom: 180,
+                  left: horizontalPadding,
+                  right: horizontalPadding,
+                  bottom: state.activeRide == null ? 112 : 16,
                   child: DecoratedBox(
                     decoration: BoxDecoration(
                       color: const Color(0xFF7F1D1D),
@@ -636,30 +707,36 @@ class _TopHeader extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 14),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'OLÁ, $firstName',
-              style: const TextStyle(
-                color: _textLight,
-                fontSize: 11,
-                letterSpacing: 1.2,
-                fontWeight: FontWeight.w600,
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'OLÁ, $firstName',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: _textLight,
+                  fontSize: 11,
+                  letterSpacing: 1.2,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              _getGreeting(),
-              style: const TextStyle(
-                color: _textDark,
-                fontSize: 20,
-                fontWeight: FontWeight.w800,
+              const SizedBox(height: 2),
+              Text(
+                _getGreeting(),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: _textDark,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-        const Spacer(),
+        const SizedBox(width: 8),
         Stack(
           children: [
             IconButton(
@@ -775,7 +852,7 @@ class _QuickDestPill extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(24),
@@ -886,8 +963,8 @@ class _PromoCard extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        height: 72,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
+        constraints: const BoxConstraints(minHeight: 72),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
           gradient: const LinearGradient(
             colors: [Color(0xFFCE2A7B), Color(0xFFB52166)],
@@ -973,29 +1050,37 @@ class _CustomBottomNavBar extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _BottomNavItem(
-            icon: Icons.directions_car_rounded,
-            label: 'INÍCIO',
-            isActive: currentIndex == 0,
-            onTap: () => onTap(0),
+          Expanded(
+            child: _BottomNavItem(
+              icon: Icons.directions_car_rounded,
+              label: 'INÍCIO',
+              isActive: currentIndex == 0,
+              onTap: () => onTap(0),
+            ),
           ),
-          _BottomNavItem(
-            icon: Icons.history_rounded,
-            label: 'VIAGENS',
-            isActive: currentIndex == 1,
-            onTap: () => onTap(1),
+          Expanded(
+            child: _BottomNavItem(
+              icon: Icons.history_rounded,
+              label: 'VIAGENS',
+              isActive: currentIndex == 1,
+              onTap: () => onTap(1),
+            ),
           ),
-          _BottomNavItem(
-            icon: Icons.account_balance_wallet_outlined,
-            label: 'CARTEIRA',
-            isActive: currentIndex == 2,
-            onTap: () => onTap(2),
+          Expanded(
+            child: _BottomNavItem(
+              icon: Icons.account_balance_wallet_outlined,
+              label: 'CARTEIRA',
+              isActive: currentIndex == 2,
+              onTap: () => onTap(2),
+            ),
           ),
-          _BottomNavItem(
-            icon: Icons.person_outline_rounded,
-            label: 'PERFIL',
-            isActive: currentIndex == 3,
-            onTap: () => onTap(3),
+          Expanded(
+            child: _BottomNavItem(
+              icon: Icons.person_outline_rounded,
+              label: 'PERFIL',
+              isActive: currentIndex == 3,
+              onTap: () => onTap(3),
+            ),
           ),
         ],
       ),

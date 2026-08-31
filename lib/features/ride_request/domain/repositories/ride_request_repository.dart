@@ -23,6 +23,13 @@ abstract class RideRequestRepository {
 
   Future<RideStatusSnapshot> getRideStatus(String rideId);
 
+  Future<void> updateRideRoute({
+    required String rideId,
+    RouteLocation? origin,
+    RouteLocation? destination,
+    List<RouteLocation>? stops,
+  });
+
   Future<RidePaymentOptionsResult> getRidePaymentOptions(String rideId);
 
   Future<RideDetail> getRideDetail(String rideId);

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:tmjapp/features/destination_search/domain/entities/route_location.dart';
 import 'package:tmjapp/features/ride_request/domain/entities/ride_payment_method.dart';
+import 'package:tmjapp/features/ride_request/presentation/utils/ride_vehicle_visuals.dart';
 import 'package:tmjapp/features/ride_request/domain/entities/ride_payment_option.dart';
 import 'package:tmjapp/features/ride_request/domain/entities/ride_product.dart';
 
@@ -96,76 +97,95 @@ class RideConfirmSheet extends StatelessWidget {
 
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 12),
-                          child: InkWell(
+                          child: Material(
+                            color: Colors.transparent,
                             borderRadius: BorderRadius.circular(16),
-                            onTap: () => onSelectProduct(index),
-                            child: Ink(
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: isSelected
-                                    ? Colors.white
-                                    : const Color(0xFFF8FAFC),
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(16),
+                              onTap: () => onSelectProduct(index),
+                              child: AnimatedContainer(
+                                key: ValueKey('ride-product-${product.id}'),
+                                duration: const Duration(milliseconds: 180),
+                                curve: Curves.easeOut,
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
                                   color: isSelected
-                                      ? const Color(0xFFEA580C)
-                                      : Colors.transparent,
-                                  width: 1.5,
+                                      ? const Color(0xFFFDF2F8)
+                                      : const Color(0xFFF8FAFC),
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(
+                                    color: isSelected
+                                        ? const Color(0xFFC92D7A)
+                                        : const Color(0xFFE2E8F0),
+                                    width: isSelected ? 2 : 1,
+                                  ),
+                                  boxShadow: isSelected
+                                      ? const [
+                                          BoxShadow(
+                                            color: Color(0x26C92D7A),
+                                            blurRadius: 12,
+                                            offset: Offset(0, 4),
+                                          ),
+                                        ]
+                                      : const [],
                                 ),
-                              ),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    width: 52,
-                                    height: 52,
-                                    decoration: BoxDecoration(
-                                      color: isSelected
-                                          ? const Color(0xFFF1F5F9)
-                                          : Colors.white,
-                                      borderRadius: BorderRadius.circular(12),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 52,
+                                      height: 52,
+                                      decoration: BoxDecoration(
+                                        color: isSelected
+                                            ? const Color(0xFFC92D7A)
+                                            : Colors.white,
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Icon(
+                                        RideVehicleVisuals.iconFor(
+                                            product.name),
+                                        color: isSelected
+                                            ? Colors.white
+                                            : const Color(0xFF334155),
+                                        size: 28,
+                                      ),
                                     ),
-                                    child: Icon(
-                                      _vehicleIconFor(product.name),
-                                      color: const Color(0xFF334155),
-                                      size: 28,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 14),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          product.name,
-                                          style: GoogleFonts.plusJakartaSans(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.w800,
-                                            color: const Color(0xFF0F172A),
+                                    const SizedBox(width: 14),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            product.name,
+                                            style: GoogleFonts.plusJakartaSans(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.w800,
+                                              color: const Color(0xFF0F172A),
+                                            ),
                                           ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          '${product.etaLabel} • ${product.subtitle}',
-                                          style: GoogleFonts.plusJakartaSans(
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.w500,
-                                            color: const Color(0xFF64748B),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            '${product.etaLabel} • ${product.subtitle}',
+                                            style: GoogleFonts.plusJakartaSans(
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w500,
+                                              color: const Color(0xFF64748B),
+                                            ),
                                           ),
-                                        ),
-                                      ],
+                                        ],
+                                      ),
                                     ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Text(
-                                    'R\$ ${product.estimatedPrice.toStringAsFixed(2).replaceAll('.', ',')}',
-                                    style: GoogleFonts.plusJakartaSans(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w800,
-                                      color: const Color(0xFF0F172A),
+                                    const SizedBox(width: 12),
+                                    Text(
+                                      'R\$ ${product.estimatedPrice.toStringAsFixed(2).replaceAll('.', ',')}',
+                                      style: GoogleFonts.plusJakartaSans(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w800,
+                                        color: const Color(0xFF0F172A),
+                                      ),
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
                             ),
                           ),
@@ -211,20 +231,6 @@ class RideConfirmSheet extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  IconData _vehicleIconFor(String productName) {
-    final normalized = productName.toLowerCase();
-    if (normalized.contains('moto') || normalized.contains('motorcycle')) {
-      return Icons.two_wheeler;
-    }
-    if (normalized.contains('comfort')) {
-      return Icons.airport_shuttle_rounded;
-    }
-    if (normalized.contains('black')) {
-      return Icons.electric_car_rounded;
-    }
-    return Icons.directions_car_rounded;
   }
 }
 

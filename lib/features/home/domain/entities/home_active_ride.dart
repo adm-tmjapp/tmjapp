@@ -28,7 +28,18 @@ class HomeActiveRide {
 
   bool get isOngoing => status.trim().toLowerCase() == 'ongoing';
 
-  String get statusLabel => isOngoing ? 'Em curso' : 'A caminho';
+  bool get isSearching {
+    final normalized = status.trim().toLowerCase();
+    return normalized == 'pending' ||
+        normalized == 'searching' ||
+        normalized == 'searching_driver' ||
+        normalized == 'requested';
+  }
+
+  String get statusLabel {
+    if (isSearching) return 'Buscando motorista';
+    return isOngoing ? 'Em curso' : 'A caminho';
+  }
 
   String? get vehicleSummary {
     final model = vehicleModel?.trim();

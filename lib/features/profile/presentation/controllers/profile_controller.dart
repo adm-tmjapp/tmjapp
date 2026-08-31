@@ -43,13 +43,22 @@ class ProfileController extends ChangeNotifier with DisposableChangeNotifier {
         return;
       }
 
-      final profile = await _remoteDataSource.fetchProfile(userId);
+      var profile = await _remoteDataSource.fetchProfile(userId);
       if (isDisposed) return;
+      if ((profile.profilePhotoUrl ?? '').isEmpty &&
+          (cachedProfile?.profilePhotoUrl ?? '').isNotEmpty) {
+        profile = profile.copyWith(
+          profilePhotoUrl: cachedProfile!.profilePhotoUrl,
+        );
+      }
       await _localDataSource.saveBasicProfile(
         name: profile.name,
         email: profile.email,
         phone: profile.phone,
       );
+      if ((profile.profilePhotoUrl ?? '').isNotEmpty) {
+        await _localDataSource.saveProfilePhotoUrl(profile.profilePhotoUrl!);
+      }
       if (isDisposed) return;
       _state = _state.copyWith(
         isLoading: false,
@@ -121,6 +130,8 @@ class ProfileController extends ChangeNotifier with DisposableChangeNotifier {
 
       // 2. Atualiza o objeto de perfil localmente com a nova URL (usando o copyWith da entidade)
       final updatedProfile = current.copyWith(profilePhotoUrl: newPhotoUrl);
+      await _localDataSource.saveProfilePhotoUrl(newPhotoUrl);
+      if (isDisposed) return;
 
       _state = _state.copyWith(
         isSaving: false,

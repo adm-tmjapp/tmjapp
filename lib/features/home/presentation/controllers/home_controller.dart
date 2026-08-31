@@ -45,6 +45,7 @@ class HomeController extends ChangeNotifier {
         currentLocation: snapshot.currentLocation,
         drivers: snapshot.activeDrivers,
         activeRide: snapshot.activeRide,
+        clearActiveRide: snapshot.activeRide == null,
         isLoading: false,
         clearErrorMessage: true,
       );

@@ -6,7 +6,16 @@ import 'package:tmjapp/data_model/api_response.dart';
 import 'package:tmjapp/data_model/response_login.dart';
 
 class Authapi {
-  BaseApi baseApi = BaseApi();
+  Authapi({BaseApi? baseApi}) : baseApi = baseApi ?? BaseApi();
+
+  final BaseApi baseApi;
+
+  Map<String, dynamic>? _parseJsonObject(Response response) {
+    if (response.body.trim().isEmpty) return null;
+
+    final decodedBody = jsonDecode(response.body);
+    return decodedBody is Map<String, dynamic> ? decodedBody : null;
+  }
 
   String? _parseMessage(Response response) {
     try {
@@ -73,8 +82,20 @@ class Authapi {
         body: {"email": email},
       );
 
-      if (response.statusCode == 200) {
-        return ApiResponseModel(response, jsonDecode(response.body));
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        final responseBody = _parseJsonObject(response);
+        final emailSent = responseBody?["emailSent"] ??
+            responseBody?["email_sent"] ??
+            responseBody?["sent"];
+
+        if (emailSent == false) {
+          throw Exception(
+            _parseMessage(response) ??
+                'O servidor não confirmou o envio do e-mail.',
+          );
+        }
+
+        return ApiResponseModel(response, responseBody);
       }
 
       throw Exception(_parseMessage(response) ?? "Falha ao solicitar reset.");

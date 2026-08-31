@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:tmjapp/features/destination_search/domain/entities/route_location.dart';
 import 'package:tmjapp/features/ride_request/domain/entities/ride_product.dart';
+import 'package:tmjapp/features/ride_request/presentation/utils/ride_vehicle_visuals.dart';
 
 class RideSearchingSheet extends StatelessWidget {
   const RideSearchingSheet({
@@ -133,9 +134,10 @@ class RideSearchingSheet extends StatelessWidget {
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(14),
                       ),
-                      child: const Icon(
-                        Icons.local_taxi_rounded,
-                        color: Color(0xFFC92D7A),
+                      child: Icon(
+                        RideVehicleVisuals.iconFor(product.name),
+                        size: 24,
+                        color: const Color(0xFFC92D7A),
                       ),
                     ),
                     const SizedBox(width: 12),

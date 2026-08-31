@@ -49,19 +49,24 @@ class AddFavoriteAddressState {
     String? errorMessage,
     String? successMessage,
     bool clearSuggestions = false,
+    bool clearSelectedLocation = false,
     bool clearError = false,
     bool clearSuccess = false,
   }) {
     return AddFavoriteAddressState(
       query: query ?? this.query,
-      suggestions: clearSuggestions ? const [] : (suggestions ?? this.suggestions),
-      selectedLocation: selectedLocation ?? this.selectedLocation,
+      suggestions:
+          clearSuggestions ? const [] : (suggestions ?? this.suggestions),
+      selectedLocation: clearSelectedLocation
+          ? null
+          : (selectedLocation ?? this.selectedLocation),
       selectedLabel: selectedLabel ?? this.selectedLabel,
       customLabel: customLabel ?? this.customLabel,
       isSearching: isSearching ?? this.isSearching,
       isSaving: isSaving ?? this.isSaving,
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
-      successMessage: clearSuccess ? null : (successMessage ?? this.successMessage),
+      successMessage:
+          clearSuccess ? null : (successMessage ?? this.successMessage),
     );
   }
 }

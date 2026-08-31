@@ -134,11 +134,12 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
                       radius: 50,
                       backgroundColor: const Color(0xFFFFE4EB),
                       // Exibe a foto da rede se existir
-                      backgroundImage: currentProfile.profilePhotoUrl != null
-                          ? NetworkImage(currentProfile.profilePhotoUrl!)
-                          : null,
+                      backgroundImage:
+                          (currentProfile.profilePhotoUrl ?? '').isNotEmpty
+                              ? NetworkImage(currentProfile.profilePhotoUrl!)
+                              : null,
                       // Exibe as iniciais caso não tenha foto
-                      child: currentProfile.profilePhotoUrl == null
+                      child: (currentProfile.profilePhotoUrl ?? '').isEmpty
                           ? Text(
                               currentProfile.initials,
                               style: GoogleFonts.plusJakartaSans(
