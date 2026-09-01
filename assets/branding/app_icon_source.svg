@@ -1,5 +1,6 @@
 <svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect width="1024" height="1024" rx="180" fill="#EC0A8C"/>
+  <rect width="1024" height="1024" fill="#EC0A8C"/>
+  <g transform="translate(215 215) scale(0.58)">
   <path d="M408 382C462 335 560 335 616 382L586 413C538 373 485 373 439 413L408 382Z" fill="#F4F4F4"/>
   <path d="M448 423C485 392 540 392 577 423L553 449C524 426 502 426 472 449L448 423Z" fill="#F4F4F4"/>
   <circle cx="513" cy="469" r="22" fill="#F4F4F4"/>
@@ -19,4 +20,5 @@
   <circle cx="851" cy="863" r="7" fill="#F4F4F4"/>
   <circle cx="907" cy="925" r="7" fill="#F4F4F4"/>
   <circle cx="851" cy="925" r="7" fill="#F4F4F4"/>
+  </g>
 </svg>

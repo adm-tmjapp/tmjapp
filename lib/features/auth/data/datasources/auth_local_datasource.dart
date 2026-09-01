@@ -50,4 +50,16 @@ class AuthLocalDataSource {
       await preferences.setBool(_biometricEnabledKey, false);
     }
   }
+
+  Future<void> setBiometricEnabled(bool enabled) async {
+    final preferences = await SharedPreferences.getInstance();
+    await preferences.setBool(_biometricEnabledKey, enabled);
+  }
+
+  Future<void> updateRememberedPassword(String newPassword) async {
+    final preferences = await SharedPreferences.getInstance();
+    if (preferences.containsKey(Strings.prefPassword)) {
+      await preferences.setString(Strings.prefPassword, newPassword);
+    }
+  }
 }

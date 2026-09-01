@@ -24,6 +24,7 @@ class _SignInPageState extends State<SignInPage> {
   late final TextEditingController _passwordController;
   String? _lastErrorMessage;
   bool _hasNavigated = false;
+  bool _hasRequestedBiometrics = false;
 
   @override
   void initState() {
@@ -80,6 +81,19 @@ class _SignInPageState extends State<SignInPage> {
 
     if (state.errorMessage == null) {
       _lastErrorMessage = null;
+    }
+
+    if (state.isInitialized &&
+        state.canUseBiometrics &&
+        !state.isLoading &&
+        !state.didLogin &&
+        !_hasRequestedBiometrics) {
+      _hasRequestedBiometrics = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && !_hasNavigated) {
+          _controller.signInWithBiometrics();
+        }
+      });
     }
 
     if (state.didLogin && !_hasNavigated) {

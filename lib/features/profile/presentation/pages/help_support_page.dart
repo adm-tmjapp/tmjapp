@@ -1,8 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:tmjapp/features/profile/presentation/pages/support_chat_page.dart';
+import 'package:tmjapp/features/profile/presentation/services/support_contact_service.dart';
 
 class HelpSupportPage extends StatelessWidget {
   const HelpSupportPage({super.key});
+
+  static final _contact = SupportContactService();
+
+  Future<void> _openExternal(BuildContext context,
+      Future<bool> Function() action, String error) async {
+    try {
+      final opened = await action();
+      if (!context.mounted || opened) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(error)));
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(error)));
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -35,7 +54,7 @@ class HelpSupportPage extends StatelessWidget {
                 borderRadius: BorderRadius.circular(20),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.06),
+                    color: Colors.black.withValues(alpha: 0.06),
                     blurRadius: 18,
                     offset: const Offset(0, 8),
                   ),
@@ -102,18 +121,31 @@ class HelpSupportPage extends StatelessWidget {
               icon: Icons.chat_bubble_outline,
               title: 'Chat ao vivo',
               subtitle: 'Fale com o suporte agora',
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const SupportChatPage()),
+              ),
             ),
             const SizedBox(height: 12),
             _ContactOption(
               icon: Icons.phone_in_talk_rounded,
               title: 'Ligação',
-              subtitle: '0800 123 4567',
+              subtitle: SupportContactService.phoneDisplay,
+              onTap: () => _openExternal(
+                context,
+                _contact.call,
+                'Não foi possível abrir o aplicativo de telefone.',
+              ),
             ),
             const SizedBox(height: 12),
             _ContactOption(
               icon: Icons.email_outlined,
               title: 'E-mail',
-              subtitle: 'suporte@tmjapp.com.br',
+              subtitle: SupportContactService.email,
+              onTap: () => _openExternal(
+                context,
+                _contact.emailSupport,
+                'Nenhum aplicativo de e-mail está disponível.',
+              ),
             ),
           ],
         ),
@@ -127,50 +159,60 @@ class _ContactOption extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.subtitle,
+    required this.onTap,
   });
 
   final IconData icon;
   final String title;
   final String subtitle;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        onTap: onTap,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: const Color(0xFFC92D7A), size: 26),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: const Color(0xFF0F172A),
-                  ),
-                ),
-                Text(
-                  subtitle,
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                    color: const Color(0xFF64748B),
-                  ),
-                ),
-              ],
-            ),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: Colors.transparent,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
           ),
-          const Icon(Icons.chevron_right_rounded, color: Color(0xFF94A3B8)),
-        ],
+          child: Row(
+            children: [
+              Icon(icon, color: const Color(0xFFC92D7A), size: 26),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: const Color(0xFF0F172A),
+                      ),
+                    ),
+                    Text(
+                      subtitle,
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        color: const Color(0xFF64748B),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right_rounded, color: Color(0xFF94A3B8)),
+            ],
+          ),
+        ),
       ),
     );
   }

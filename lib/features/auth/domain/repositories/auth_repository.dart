@@ -5,6 +5,7 @@ import 'package:tmjapp/features/auth/domain/entities/remembered_auth.dart';
 abstract class AuthRepository {
   Future<RememberedAuth?> getRememberedAuth();
   Future<BiometricLoginStatus> getBiometricStatus();
+  Future<BiometricLoginStatus> setBiometricEnabled(bool enabled);
   Future<AuthSession> signUp({
     required String name,
     required String email,
@@ -27,4 +28,5 @@ abstract class AuthRepository {
     required String code,
     required String newPassword,
   });
+  Future<void> updateRememberedPassword(String newPassword);
 }

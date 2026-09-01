@@ -8,6 +8,7 @@ class SignInState {
     this.biometricLabel = 'Entrar com biometria',
     this.errorMessage,
     this.didLogin = false,
+    this.isInitialized = false,
   });
 
   final String identifier;
@@ -18,6 +19,7 @@ class SignInState {
   final String biometricLabel;
   final String? errorMessage;
   final bool didLogin;
+  final bool isInitialized;
 
   SignInState copyWith({
     String? identifier,
@@ -29,6 +31,7 @@ class SignInState {
     String? errorMessage,
     bool clearError = false,
     bool? didLogin,
+    bool? isInitialized,
   }) {
     return SignInState(
       identifier: identifier ?? this.identifier,
@@ -39,6 +42,7 @@ class SignInState {
       biometricLabel: biometricLabel ?? this.biometricLabel,
       errorMessage: clearError ? null : errorMessage ?? this.errorMessage,
       didLogin: didLogin ?? this.didLogin,
+      isInitialized: isInitialized ?? this.isInitialized,
     );
   }
 }

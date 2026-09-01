@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart'; // Para o switch no estilo iOS se desejar, mas usaremos o nativo do Material
 import 'package:google_fonts/google_fonts.dart';
+import 'package:tmjapp/core/di/auth_module.dart';
+import 'package:tmjapp/features/profile/presentation/pages/active_sessions_page.dart';
+import 'package:tmjapp/features/profile/presentation/pages/change_password_page.dart';
+import 'package:tmjapp/features/profile/presentation/pages/legal_document_page.dart';
 
 // Cores baseadas na sua paleta do ProfilePage
 const Color _primaryPink = Color(0xFFC92D7A);
@@ -18,13 +21,48 @@ class SecurityAndTermsPage extends StatefulWidget {
 }
 
 class _SecurityAndTermsPageState extends State<SecurityAndTermsPage> {
-  // Simulando um estado para a biometria
-  bool _useBiometrics = true;
+  final _authRepository = createAuthRepository();
+  bool _useBiometrics = false;
+  bool _biometricSupported = true;
+  bool _updatingBiometrics = false;
 
-  void _showNotImplementedMessage(String feature) {
+  @override
+  void initState() {
+    super.initState();
+    _loadBiometricStatus();
+  }
+
+  Future<void> _loadBiometricStatus() async {
+    final status = await _authRepository.getBiometricStatus();
+    if (!mounted) return;
+    setState(() {
+      _useBiometrics = status.isEnabled;
+      _biometricSupported = status.isSupported;
+    });
+  }
+
+  Future<void> _setBiometrics(bool value) async {
+    setState(() => _updatingBiometrics = true);
+    try {
+      final status = await _authRepository.setBiometricEnabled(value);
+      if (!mounted) return;
+      setState(() => _useBiometrics = status.isEnabled);
+      _showMessage(value
+          ? 'Acesso com biometria ativado.'
+          : 'Acesso com biometria desativado.');
+    } catch (error) {
+      if (mounted) {
+        _showMessage(error.toString().replaceFirst('Exception: ', ''));
+      }
+    } finally {
+      if (mounted) setState(() => _updatingBiometrics = false);
+    }
+  }
+
+  void _showMessage(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('$feature ficará disponível em breve.'),
+        content: Text(message),
         backgroundColor: _textMedium,
       ),
     );
@@ -70,25 +108,28 @@ class _SecurityAndTermsPageState extends State<SecurityAndTermsPage> {
                   _MenuTile(
                     label: 'Alterar Senha',
                     icon: Icons.lock_outline_rounded,
-                    onTap: () =>
-                        _showNotImplementedMessage('Alteração de senha'),
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                          builder: (_) => const ChangePasswordPage()),
+                    ),
                   ),
                   const _CustomDivider(),
                   _ToggleTile(
                     label: 'Acesso com Biometria',
                     icon: Icons.fingerprint_rounded,
                     value: _useBiometrics,
-                    onChanged: (val) {
-                      setState(() {
-                        _useBiometrics = val;
-                      });
-                    },
+                    onChanged: !_biometricSupported || _updatingBiometrics
+                        ? null
+                        : _setBiometrics,
                   ),
                   const _CustomDivider(),
                   _MenuTile(
                     label: 'Sessões Ativas',
                     icon: Icons.devices_rounded,
-                    onTap: () => _showNotImplementedMessage('Sessões ativas'),
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                          builder: (_) => const ActiveSessionsPage()),
+                    ),
                   ),
                 ],
               ),
@@ -110,20 +151,34 @@ class _SecurityAndTermsPageState extends State<SecurityAndTermsPage> {
                   _MenuTile(
                     label: 'Termos de Uso',
                     icon: Icons.description_outlined,
-                    onTap: () => _showNotImplementedMessage('Termos de Uso'),
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const LegalDocumentPage(
+                            document: LegalDocument.terms),
+                      ),
+                    ),
                   ),
                   const _CustomDivider(),
                   _MenuTile(
                     label: 'Política de Privacidade',
                     icon: Icons.privacy_tip_outlined,
-                    onTap: () =>
-                        _showNotImplementedMessage('Política de Privacidade'),
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const LegalDocumentPage(
+                            document: LegalDocument.privacy),
+                      ),
+                    ),
                   ),
                   const _CustomDivider(),
                   _MenuTile(
                     label: 'Licenças de Software',
                     icon: Icons.code_rounded,
-                    onTap: () => _showNotImplementedMessage('Licenças'),
+                    onTap: () => showLicensePage(
+                      context: context,
+                      applicationName: 'TMJApp',
+                      applicationLegalese:
+                          'Licenças dos componentes de software utilizados pelo aplicativo.',
+                    ),
                   ),
                 ],
               ),
@@ -219,7 +274,7 @@ class _ToggleTile extends StatelessWidget {
   final String label;
   final IconData icon;
   final bool value;
-  final ValueChanged<bool> onChanged;
+  final ValueChanged<bool>? onChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -250,7 +305,7 @@ class _ToggleTile extends StatelessWidget {
           Switch(
             value: value,
             onChanged: onChanged,
-            activeColor: Colors.white,
+            activeThumbColor: Colors.white,
             activeTrackColor: _primaryPink,
             inactiveThumbColor: Colors.white,
             inactiveTrackColor: Colors.grey.shade300,

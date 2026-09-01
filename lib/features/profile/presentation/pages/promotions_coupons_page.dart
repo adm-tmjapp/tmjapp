@@ -1,319 +1,315 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:tmjapp/features/profile/data/datasources/coupon_local_datasource.dart';
+import 'package:tmjapp/features/profile/data/models/coupon.dart';
 
-// Cores do seu padrão
-const Color _primaryPink = Color(0xFFC92D7A);
-const Color _bgPinkLight = Color(0xFFFCE7F3);
-const Color _bgLight = Color(0xFFF8FAFC);
-const Color _textDark = Color(0xFF1D2939);
-const Color _textMedium = Color(0xFF344054);
-const Color _textLight = Color(0xFF667085);
+const _pink = Color(0xFFC92D7A);
+const _lightPink = Color(0xFFFCE7F3);
+const _background = Color(0xFFF8FAFC);
+const _dark = Color(0xFF1D2939);
+const _muted = Color(0xFF667085);
 
 class PromotionsCouponsPage extends StatefulWidget {
   const PromotionsCouponsPage({super.key});
-
   @override
   State<PromotionsCouponsPage> createState() => _PromotionsCouponsPageState();
 }
 
 class _PromotionsCouponsPageState extends State<PromotionsCouponsPage> {
-  final TextEditingController _couponController = TextEditingController();
+  final _controller = TextEditingController();
+  final _source = CouponLocalDataSource();
+  List<Coupon> _coupons = const [];
+  String? _selected;
+  bool _loading = true;
+  bool _applying = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final coupons = await _source.getActiveCoupons();
+    final selected = await _source.getSelectedCode();
+    if (!mounted) return;
+    setState(() {
+      _coupons = coupons;
+      _selected = coupons.any((c) => c.code == selected) ? selected : null;
+      _loading = false;
+    });
+  }
+
+  void _message(String text, {bool error = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(text),
+      backgroundColor:
+          error ? const Color(0xFFB42318) : const Color(0xFF16A34A),
+    ));
+  }
+
+  Future<void> _apply() async {
+    FocusScope.of(context).unfocus();
+    if (_controller.text.trim().isEmpty) {
+      _message('Digite um código de cupom.', error: true);
+      return;
+    }
+    setState(() => _applying = true);
+    try {
+      final coupon = await _source.addCoupon(_controller.text);
+      await _source.selectCoupon(coupon.code);
+      _controller.clear();
+      await _load();
+      if (mounted) {
+        _message('Cupom "${coupon.code}" aplicado com sucesso!');
+      }
+    } on CouponException catch (error) {
+      if (mounted) _message(error.message, error: true);
+    } finally {
+      if (mounted) setState(() => _applying = false);
+    }
+  }
+
+  Future<void> _details(Coupon coupon) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 4, 24, 24),
+          child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(coupon.title,
+                    style: GoogleFonts.plusJakartaSans(
+                        fontSize: 20, fontWeight: FontWeight.w800)),
+                const SizedBox(height: 8),
+                Text(coupon.description,
+                    style: const TextStyle(color: _muted, height: 1.5)),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.confirmation_number_outlined,
+                      color: _pink),
+                  title: Text(coupon.code),
+                  subtitle: Text(_expiry(coupon)),
+                  trailing: IconButton(
+                    tooltip: 'Copiar código',
+                    icon: const Icon(Icons.copy_rounded),
+                    onPressed: () async {
+                      await Clipboard.setData(ClipboardData(text: coupon.code));
+                      if (sheetContext.mounted) Navigator.pop(sheetContext);
+                      if (mounted) _message('Código ${coupon.code} copiado.');
+                    },
+                  ),
+                ),
+                SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: _selected == coupon.code
+                          ? null
+                          : () async {
+                              await _source.selectCoupon(coupon.code);
+                              if (sheetContext.mounted) {
+                                Navigator.pop(sheetContext);
+                              }
+                              await _load();
+                              if (mounted) {
+                                _message(
+                                    'Cupom ${coupon.code} selecionado para a próxima corrida.');
+                              }
+                            },
+                      icon: const Icon(Icons.check_circle_outline),
+                      label: Text(_selected == coupon.code
+                          ? 'CUPOM SELECIONADO'
+                          : 'USAR NA PRÓXIMA CORRIDA'),
+                    )),
+                SizedBox(
+                    width: double.infinity,
+                    child: TextButton.icon(
+                      icon: const Icon(Icons.delete_outline),
+                      label: const Text('REMOVER CUPOM'),
+                      onPressed: () async {
+                        await _source.removeCoupon(coupon.code);
+                        if (sheetContext.mounted) Navigator.pop(sheetContext);
+                        await _load();
+                        if (mounted) _message('Cupom ${coupon.code} removido.');
+                      },
+                    )),
+              ]),
+        ),
+      ),
+    );
+  }
 
   @override
   void dispose() {
-    _couponController.dispose();
+    _controller.dispose();
     super.dispose();
   }
 
-  void _applyCoupon() {
-    final code = _couponController.text.trim();
-    if (code.isEmpty) return;
-
-    // Remove o foco do teclado
-    FocusScope.of(context).unfocus();
-
-    // Simulando a adição de um cupom
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Cupom "$code" aplicado com sucesso!'),
-        backgroundColor: const Color(0xFF16A34A), // Verde sucesso
-      ),
-    );
-    _couponController.clear();
-  }
-
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: _bgLight,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 1,
-        leading: IconButton(
-          icon:
-              const Icon(Icons.arrow_back_ios_new, color: _textDark, size: 20),
-          onPressed: () => Navigator.of(context).pop(),
+  Widget build(BuildContext context) => Scaffold(
+        backgroundColor: _background,
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          leading: IconButton(
+              icon:
+                  const Icon(Icons.arrow_back_ios_new, color: _dark, size: 20),
+              onPressed: () => Navigator.pop(context)),
+          centerTitle: true,
+          title: Text('Promoções e Cupons',
+              style: GoogleFonts.plusJakartaSans(
+                  color: _dark, fontWeight: FontWeight.w800, fontSize: 18)),
         ),
-        centerTitle: true,
-        title: Text(
-          'Promoções e Cupons',
-          style: GoogleFonts.plusJakartaSans(
-            color: _textDark,
-            fontWeight: FontWeight.w800,
-            fontSize: 18,
-          ),
-        ),
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // --- CAMPO DE ADICIONAR CUPOM ---
-              Text(
-                'Adicionar um cupom',
+        body: SafeArea(
+            child: RefreshIndicator(
+          onRefresh: _load,
+          child: ListView(padding: const EdgeInsets.all(20), children: [
+            Text('Adicionar um cupom',
                 style: GoogleFonts.plusJakartaSans(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w800,
-                  color: _textDark,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _couponController,
-                      textCapitalization: TextCapitalization.characters,
-                      decoration: InputDecoration(
-                        hintText: 'Digite o código',
-                        hintStyle: GoogleFonts.plusJakartaSans(
-                            color: Colors.grey.shade400),
-                        filled: true,
-                        fillColor: Colors.white,
-                        contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 16),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Colors.grey.shade300),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide:
-                              const BorderSide(color: _primaryPink, width: 1.5),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  SizedBox(
-                    height: 52,
-                    child: ElevatedButton(
-                      onPressed: _applyCoupon,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: _primaryPink,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: Text(
-                        'Aplicar',
-                        style: GoogleFonts.plusJakartaSans(
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 32),
-
-              // --- LISTA DE CUPONS ATIVOS ---
-              const _SectionTitle('CUPONS ATIVOS'),
-              const SizedBox(height: 16),
-
-              // Simulação de Cupons
-              const _CouponCard(
-                title: 'R\$ 10 OFF na próxima corrida',
-                description: 'Válido para qualquer categoria de viagem.',
-                code: 'TMJ10',
-                expiryDate: 'Válido até 31/12/2026',
-                isExpiringSoon: false,
-              ),
-              const SizedBox(height: 12),
-              const _CouponCard(
-                title: '15% de desconto',
-                description:
-                    'Desconto máximo de R\$ 15. Apenas pagamentos com cartão.',
-                code: 'BEMVINDO15',
-                expiryDate: 'Expira hoje!',
-                isExpiringSoon: true,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+                    fontSize: 15, fontWeight: FontWeight.w800, color: _dark)),
+            const SizedBox(height: 12),
+            Row(children: [
+              Expanded(
+                  child: TextField(
+                controller: _controller,
+                textCapitalization: TextCapitalization.characters,
+                textInputAction: TextInputAction.done,
+                onSubmitted: (_) {
+                  if (!_applying) _apply();
+                },
+                decoration: InputDecoration(
+                    hintText: 'Digite o código',
+                    filled: true,
+                    fillColor: Colors.white,
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12))),
+              )),
+              const SizedBox(width: 12),
+              SizedBox(
+                  height: 52,
+                  child: ElevatedButton(
+                    onPressed: _applying ? null : _apply,
+                    style: ElevatedButton.styleFrom(
+                        backgroundColor: _pink, foregroundColor: Colors.white),
+                    child: _applying
+                        ? const SizedBox.square(
+                            dimension: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Text('Aplicar'),
+                  )),
+            ]),
+            const SizedBox(height: 32),
+            Text('CUPONS ATIVOS',
+                style: GoogleFonts.plusJakartaSans(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.2,
+                    color: _muted)),
+            const SizedBox(height: 16),
+            if (_loading)
+              const Center(
+                  child: Padding(
+                      padding: EdgeInsets.all(32),
+                      child: CircularProgressIndicator()))
+            else if (_coupons.isEmpty)
+              const _EmptyState()
+            else
+              ..._coupons.map((coupon) => Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: _CouponCard(
+                        coupon: coupon,
+                        selected: coupon.code == _selected,
+                        onTap: () => _details(coupon)),
+                  )),
+          ]),
+        )),
+      );
 }
 
-// ============================================================================
-// WIDGETS AUXILIARES
-// ============================================================================
-
-class _SectionTitle extends StatelessWidget {
-  const _SectionTitle(this.label);
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 4),
-      child: Text(
-        label,
-        style: GoogleFonts.plusJakartaSans(
-          fontSize: 12,
-          fontWeight: FontWeight.w800,
-          letterSpacing: 1.2,
-          color: _textLight,
-        ),
-      ),
-    );
-  }
-}
+String _expiry(Coupon c) =>
+    'Válido até ${c.expiryDate.day.toString().padLeft(2, '0')}/${c.expiryDate.month.toString().padLeft(2, '0')}/${c.expiryDate.year}';
 
 class _CouponCard extends StatelessWidget {
-  final String title;
-  final String description;
-  final String code;
-  final String expiryDate;
-  final bool isExpiringSoon;
-
-  const _CouponCard({
-    required this.title,
-    required this.description,
-    required this.code,
-    required this.expiryDate,
-    this.isExpiringSoon = false,
-  });
-
+  const _CouponCard(
+      {required this.coupon, required this.selected, required this.onTap});
+  final Coupon coupon;
+  final bool selected;
+  final VoidCallback onTap;
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
+  Widget build(BuildContext context) => Material(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-            color:
-                isExpiringSoon ? Colors.orange.shade200 : Colors.grey.shade200),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          // Aba esquerda do cupom (cor sólida)
-          Container(
-            width: 80,
-            padding: const EdgeInsets.symmetric(vertical: 24),
-            decoration: const BoxDecoration(
-              color: _bgPinkLight,
-              borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(15),
-                bottomLeft: Radius.circular(15),
-              ),
-            ),
-            child: const Center(
-              child: Icon(Icons.local_offer_rounded,
-                  color: _primaryPink, size: 32),
-            ),
-          ),
-          // Linha tracejada simulando o picote do cupom
-          Container(
-            height: 100,
-            width: 1,
-            decoration: BoxDecoration(
-              border: Border(
-                right: BorderSide(
-                  color: Colors.grey.shade300,
-                  width: 1,
-                  style: BorderStyle
-                      .none, // O Flutter não tem native dashed border simples em Containers, então usamos cor sólida clara
-                ),
-              ),
-            ),
-          ),
-          // Conteúdo do Cupom
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w800,
-                      color: _textDark,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    description,
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: _textLight,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade100,
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          code,
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w800,
-                            color: _textMedium,
-                            letterSpacing: 1,
-                          ),
-                        ),
-                      ),
-                      Text(
-                        expiryDate,
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          color: isExpiringSoon
-                              ? Colors.orange.shade700
-                              : _textLight,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+        child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(16),
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                      color: selected ? _pink : const Color(0xFFEAECF0),
+                      width: selected ? 1.5 : 1)),
+              child: Row(children: [
+                Container(
+                    width: 56,
+                    height: 76,
+                    decoration: BoxDecoration(
+                        color: _lightPink,
+                        borderRadius: BorderRadius.circular(12)),
+                    child: const Icon(Icons.local_offer_rounded,
+                        color: _pink, size: 28)),
+                const SizedBox(width: 14),
+                Expanded(
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                      Row(children: [
+                        Expanded(
+                            child: Text(coupon.title,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                    color: _dark))),
+                        if (selected)
+                          const Icon(Icons.check_circle, color: _pink, size: 20)
+                      ]),
+                      const SizedBox(height: 5),
+                      Text(coupon.description,
+                          style: const TextStyle(fontSize: 12, color: _muted)),
+                      const SizedBox(height: 10),
+                      Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(coupon.code,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 1)),
+                            Text(_expiry(coupon),
+                                style: const TextStyle(
+                                    fontSize: 11, color: _muted))
+                          ]),
+                    ])),
+                const Icon(Icons.chevron_right, color: Color(0xFF98A2B3)),
+              ]),
+            )),
+      );
+}
+
+class _EmptyState extends StatelessWidget {
+  const _EmptyState();
+  @override
+  Widget build(BuildContext context) => const Padding(
+        padding: EdgeInsets.symmetric(vertical: 40),
+        child: Column(children: [
+          Icon(Icons.local_offer_outlined, size: 44, color: Color(0xFF98A2B3)),
+          SizedBox(height: 12),
+          Text('Nenhum cupom ativo',
+              style: TextStyle(fontWeight: FontWeight.w700)),
+          SizedBox(height: 6),
+          Text('Adicione um código válido para vê-lo aqui.',
+              style: TextStyle(color: _muted))
+        ]),
+      );
 }

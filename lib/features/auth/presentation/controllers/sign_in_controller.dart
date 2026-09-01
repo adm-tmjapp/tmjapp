@@ -38,6 +38,7 @@ class SignInController extends ChangeNotifier with DisposableChangeNotifier {
       rememberMe: rememberedAuth?.rememberMe ?? false,
       canUseBiometrics: biometricStatus.canLogin,
       biometricLabel: biometricStatus.label,
+      isInitialized: true,
       clearError: true,
     );
     notifyListeners();
