@@ -1,7 +1,31 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:tmjapp/app/router/app_router.dart';
 import 'package:tmjapp/features/trip_history/domain/entities/trip_history_item.dart';
+
+String buildTripReceiptText(TripHistoryItem item) {
+  final price = item.price.toStringAsFixed(2).replaceAll('.', ',');
+
+  return '''Recibo de viagem - TMJ
+
+Viagem: ${item.title}
+Data: ${item.dateLabel}
+Status: ${item.status}
+
+Origem: ${item.originTitle} - ${item.originSubtitle}
+Destino: ${item.destinationTitle} - ${item.destinationSubtitle}
+
+Motorista: ${item.driverName}
+Veículo: ${item.vehicle} - ${item.plate}
+Distância: ${item.distanceLabel}
+Duração: ${item.durationLabel}
+
+Pagamento: ${item.paymentLabel}
+Total: R\$ $price
+Código da viagem: ${item.id}''';
+}
 
 class TripDetailPage extends StatelessWidget {
   const TripDetailPage({
@@ -10,6 +34,30 @@ class TripDetailPage extends StatelessWidget {
   });
 
   final TripHistoryItem item;
+
+  Future<void> _shareReceipt(BuildContext context) async {
+    final renderObject = context.findRenderObject();
+    final box = renderObject is RenderBox ? renderObject : null;
+    final origin =
+        box == null ? null : box.localToGlobal(Offset.zero) & box.size;
+
+    try {
+      await SharePlus.instance.share(
+        ShareParams(
+          text: buildTripReceiptText(item),
+          subject: 'Recibo da viagem ${item.id}',
+          sharePositionOrigin: origin,
+        ),
+      );
+    } catch (_) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Não foi possível compartilhar o recibo.'),
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -53,8 +101,8 @@ class TripDetailPage extends StatelessWidget {
               width: double.infinity,
               color: const Color(
                   0xFFD6E4D1), // Cor de fundo caso o mapa demore a carregar
-              child: GoogleMap(
-                initialCameraPosition: const CameraPosition(
+              child: const GoogleMap(
+                initialCameraPosition: CameraPosition(
                   // Usando valores genéricos para exemplificar. No cenário real,
                   // você deve passar as coordenadas (LatLng) oriundas do `item`.
                   target: LatLng(-23.561684, -46.655981),
@@ -177,7 +225,9 @@ class TripDetailPage extends StatelessWidget {
                     width: double.infinity,
                     height: 52,
                     child: ElevatedButton(
-                      onPressed: () {},
+                      onPressed: () => Navigator.of(context).pushNamed(
+                        AppRoutes.helpSupport,
+                      ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFFC92D7A),
                         foregroundColor: Colors.white,
@@ -197,16 +247,18 @@ class TripDetailPage extends StatelessWidget {
                   ),
                   const SizedBox(height: 20),
                   Center(
-                    child: TextButton(
-                      onPressed: () {},
-                      style: TextButton.styleFrom(
-                        foregroundColor: const Color(0xFF64748B),
-                      ),
-                      child: Text(
-                        'Compartilhar recibo',
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
+                    child: Builder(
+                      builder: (shareContext) => TextButton(
+                        onPressed: () => _shareReceipt(shareContext),
+                        style: TextButton.styleFrom(
+                          foregroundColor: const Color(0xFF64748B),
+                        ),
+                        child: Text(
+                          'Compartilhar recibo',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
                     ),
@@ -288,7 +340,7 @@ class _DriverCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(12),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
+                      color: Colors.black.withValues(alpha: 0.05),
                       blurRadius: 4,
                       offset: const Offset(0, 2),
                     )

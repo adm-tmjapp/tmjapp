@@ -58,6 +58,7 @@ dependencies:
   provider: ^6.1.5+1
   firebase_analytics: ^10.10.7
   firebase_crashlytics: ^3.5.7
+  share_plus: ^13.3.0
 
 dev_dependencies:
   flutter_test:
