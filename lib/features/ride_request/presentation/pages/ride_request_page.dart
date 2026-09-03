@@ -75,6 +75,8 @@ class _RideRequestPageState extends State<RideRequestPage>
   final RideBackgroundNotification _backgroundNotification =
       RideBackgroundNotification();
   bool _draftCleared = false;
+  bool _isPopping = false;
+  Future<void>? _draftSaveFuture;
   BitmapDescriptor? _carMarkerIcon;
   BitmapDescriptor? _motorcycleMarkerIcon;
   late RouteLocation _origin;
@@ -110,7 +112,7 @@ class _RideRequestPageState extends State<RideRequestPage>
     )..addListener(_onStateChanged);
 
     if (!widget.args.hasExistingRide) {
-      unawaited(_saveConfirmationDraft());
+      _draftSaveFuture = _saveConfirmationDraft();
     } else {
       _draftCleared = true;
     }
@@ -122,6 +124,29 @@ class _RideRequestPageState extends State<RideRequestPage>
       await _draftLocalDataSource.save(widget.args);
     } catch (_) {
       _draftCleared = true;
+    }
+  }
+
+  Future<void> _clearConfirmationDraft() async {
+    if (_draftCleared) return;
+
+    _draftCleared = true;
+    await _draftSaveFuture;
+    await _draftLocalDataSource.clear();
+  }
+
+  Future<void> _handleBack() async {
+    if (_isPopping) return;
+    _isPopping = true;
+
+    try {
+      if (_controller.state.stage == RideStage.confirming) {
+        await _clearConfirmationDraft();
+      }
+    } finally {
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
     }
   }
 
@@ -169,8 +194,7 @@ class _RideRequestPageState extends State<RideRequestPage>
       _backgroundNotification.cancel();
     }
     if (!_draftCleared && _controller.state.stage != RideStage.confirming) {
-      _draftCleared = true;
-      unawaited(_draftLocalDataSource.clear());
+      unawaited(_clearConfirmationDraft());
     }
     final errorMessage = _controller.state.errorMessage;
     if (errorMessage != null &&
@@ -918,312 +942,329 @@ class _RideRequestPageState extends State<RideRequestPage>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
-      body: AnimatedBuilder(
-        animation: _controller,
-        builder: (context, _) {
-          final state = _controller.state;
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) {
+          unawaited(_handleBack());
+        }
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF8FAFC),
+        body: AnimatedBuilder(
+          animation: _controller,
+          builder: (context, _) {
+            final state = _controller.state;
 
-          // --- PASSO 1 DA ALTERAÇÃO AQUI! ---
-          // Intercepta a tela ANTES de desenhar o Stack inteiro com o Mapa.
-          // Isso garante que a tela de sucesso ocupe 100% livremente.
-          if (state.stage == RideStage.cancelled) {
-            return RideCancelledSuccessfullyPage(
-              onBackToDashboard: () {
-                widget.onClearActiveRide?.call();
-                Navigator.of(context).popUntil((route) => route.isFirst);
-              },
-            );
-          }
+            // --- PASSO 1 DA ALTERAÇÃO AQUI! ---
+            // Intercepta a tela ANTES de desenhar o Stack inteiro com o Mapa.
+            // Isso garante que a tela de sucesso ocupe 100% livremente.
+            if (state.stage == RideStage.cancelled) {
+              return RideCancelledSuccessfullyPage(
+                onBackToDashboard: () {
+                  widget.onClearActiveRide?.call();
+                  Navigator.of(context).popUntil((route) => route.isFirst);
+                },
+              );
+            }
 
-          final selectedProduct = state.selectedProduct;
-          final isDriverArrived = _shouldShowDriverArrived(state);
-          final isCompleted = state.stage == RideStage.completed;
+            final selectedProduct = state.selectedProduct;
+            final isDriverArrived = _shouldShowDriverArrived(state);
+            final isCompleted = state.stage == RideStage.completed;
 
-          return Stack(
-            children: [
-              // --- MAPA OU FUNDO DEGRADÊ ---
-              if (!isCompleted)
-                Positioned.fill(
-                  child: GoogleMap(
-                    initialCameraPosition: CameraPosition(
-                      target: LatLng(_origin.latitude, _origin.longitude),
-                      zoom: 12.8,
-                    ),
-                    onMapCreated: (controller) {
-                      _mapController = controller;
-                      WidgetsBinding.instance
-                          .addPostFrameCallback((_) => _centerMap());
-                    },
-                    myLocationEnabled: true,
-                    myLocationButtonEnabled: false,
-                    zoomControlsEnabled: false,
-                    compassEnabled: false,
-                    markers: _buildMarkers(),
-                    polylines: _buildPolylines(),
-                    circles: _buildCircles(),
-                  ),
-                )
-              else
-                Positioned.fill(
-                  child: Container(
-                    decoration: const BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [Color(0xFFFFFFFF), Color(0xFFF1F5F9)],
+            return Stack(
+              children: [
+                // --- MAPA OU FUNDO DEGRADÊ ---
+                if (!isCompleted)
+                  Positioned.fill(
+                    child: GoogleMap(
+                      initialCameraPosition: CameraPosition(
+                        target: LatLng(_origin.latitude, _origin.longitude),
+                        zoom: 12.8,
                       ),
+                      onMapCreated: (controller) {
+                        _mapController = controller;
+                        WidgetsBinding.instance
+                            .addPostFrameCallback((_) => _centerMap());
+                      },
+                      myLocationEnabled: true,
+                      myLocationButtonEnabled: false,
+                      zoomControlsEnabled: false,
+                      compassEnabled: false,
+                      markers: _buildMarkers(),
+                      polylines: _buildPolylines(),
+                      circles: _buildCircles(),
                     ),
-                  ),
-                ),
-
-              // --- HEADER CONDICIONAL ---
-              if (!isCompleted)
-                Positioned(
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  child: Container(
-                    padding: EdgeInsets.only(
-                      top: MediaQuery.of(context).padding.top + 12,
-                      left: 16,
-                      right: 16,
-                    ),
+                  )
+                else
+                  Positioned.fill(
                     child: Container(
-                      height: 64,
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [Colors.white, Color(0xFFF8FAFC)],
+                      decoration: const BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [Color(0xFFFFFFFF), Color(0xFFF1F5F9)],
                         ),
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.08),
-                            blurRadius: 15,
-                            offset: const Offset(0, 5),
-                          ),
-                        ],
                       ),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 8),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            SizedBox(
-                              width: 60,
-                              child: IconButton(
-                                icon: const Icon(Icons.arrow_back_rounded,
-                                    color: Color(0xFFC92D7A), size: 24),
-                                onPressed: () => Navigator.of(context).pop(),
-                              ),
-                            ),
-                            Expanded(
-                              child: Text(
-                                _titleForStage(state.stage,
-                                    driverArrived: isDriverArrived),
-                                textAlign: TextAlign.center,
-                                style: GoogleFonts.plusJakartaSans(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w800,
-                                  color: const Color(0xFF1E293B),
-                                ),
-                              ),
-                            ),
-                            Container(
-                              width: 60,
-                              alignment: Alignment.centerRight,
-                              child: (state.stage == RideStage.driverAssigned ||
-                                      state.stage == RideStage.rideInProgress)
-                                  ? Padding(
-                                      padding: const EdgeInsets.only(right: 8),
-                                      child: InkWell(
-                                        onTap: _openSOS,
-                                        borderRadius:
-                                            BorderRadius.circular(999),
-                                        child: Container(
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 10, vertical: 5),
-                                          decoration: BoxDecoration(
-                                            color: Colors.white,
-                                            border: Border.all(
-                                                color: const Color(0xFFDC2626),
-                                                width: 1.5),
-                                            borderRadius:
-                                                BorderRadius.circular(999),
-                                          ),
-                                          child: Text(
-                                            'SOS',
-                                            style: GoogleFonts.plusJakartaSans(
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w800,
-                                              color: const Color(0xFFDC2626),
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    )
-                                  : const SizedBox(),
+                    ),
+                  ),
+
+                // --- HEADER CONDICIONAL ---
+                if (!isCompleted)
+                  Positioned(
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    child: Container(
+                      padding: EdgeInsets.only(
+                        top: MediaQuery.of(context).padding.top + 12,
+                        left: 16,
+                        right: 16,
+                      ),
+                      child: Container(
+                        height: 64,
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [Colors.white, Color(0xFFF8FAFC)],
+                          ),
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.08),
+                              blurRadius: 15,
+                              offset: const Offset(0, 5),
                             ),
                           ],
                         ),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              SizedBox(
+                                width: 60,
+                                child: IconButton(
+                                  icon: const Icon(Icons.arrow_back_rounded,
+                                      color: Color(0xFFC92D7A), size: 24),
+                                  onPressed: _handleBack,
+                                ),
+                              ),
+                              Expanded(
+                                child: Text(
+                                  _titleForStage(state.stage,
+                                      driverArrived: isDriverArrived),
+                                  textAlign: TextAlign.center,
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w800,
+                                    color: const Color(0xFF1E293B),
+                                  ),
+                                ),
+                              ),
+                              Container(
+                                width: 60,
+                                alignment: Alignment.centerRight,
+                                child: (state.stage ==
+                                            RideStage.driverAssigned ||
+                                        state.stage == RideStage.rideInProgress)
+                                    ? Padding(
+                                        padding:
+                                            const EdgeInsets.only(right: 8),
+                                        child: InkWell(
+                                          onTap: _openSOS,
+                                          borderRadius:
+                                              BorderRadius.circular(999),
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 10, vertical: 5),
+                                            decoration: BoxDecoration(
+                                              color: Colors.white,
+                                              border: Border.all(
+                                                  color:
+                                                      const Color(0xFFDC2626),
+                                                  width: 1.5),
+                                              borderRadius:
+                                                  BorderRadius.circular(999),
+                                            ),
+                                            child: Text(
+                                              'SOS',
+                                              style:
+                                                  GoogleFonts.plusJakartaSans(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w800,
+                                                color: const Color(0xFFDC2626),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      )
+                                    : const SizedBox(),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                // --- BOTÕES DO MAPA ---
+                if (!isCompleted)
+                  Positioned(
+                    top: MediaQuery.of(context).padding.top + 90,
+                    right: 16,
+                    child: Column(
+                      children: [
+                        _MapFloatingButton(icon: Icons.add, onTap: _zoomIn),
+                        const SizedBox(height: 12),
+                        _MapFloatingButton(icon: Icons.remove, onTap: _zoomOut),
+                        const SizedBox(height: 12),
+                        _MapFloatingButton(
+                            icon: Icons.my_location_rounded,
+                            onTap: _centerMap,
+                            isAccent: true),
+                      ],
+                    ),
+                  ),
+
+                if (state.stage == RideStage.searchingDriver ||
+                    state.stage == RideStage.driverAssigned ||
+                    state.stage == RideStage.rideInProgress)
+                  Positioned(
+                    top: MediaQuery.of(context).padding.top + 90,
+                    left: 16,
+                    child: _MapFloatingButton(
+                      icon: _isUpdatingRoute
+                          ? Icons.hourglass_top_rounded
+                          : Icons.edit_rounded,
+                      onTap: _showEditAddressOptions,
+                      isAccent: true,
+                    ),
+                  ),
+
+                // --- ÁREA DAS SHEETS ---
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  top:
+                      isCompleted ? 0 : MediaQuery.of(context).padding.top + 90,
+                  child: Align(
+                    alignment: isCompleted
+                        ? Alignment.topCenter
+                        : Alignment.bottomCenter,
+                    child: SingleChildScrollView(
+                      physics: const BouncingScrollPhysics(),
+                      child: SafeArea(
+                        top: isCompleted,
+                        bottom: true,
+                        child: switch (state.stage) {
+                          RideStage.confirming => RideConfirmSheet(
+                              origin: _origin,
+                              destination: _destination,
+                              isLoading: state.isLoading,
+                              products: state.products,
+                              selectedProductIndex: state.selectedProductIndex,
+                              selectedPaymentMethod:
+                                  state.selectedPaymentMethod,
+                              paymentOptions: state.paymentOptions,
+                              onSelectProduct: _controller.selectProduct,
+                              onSelectPaymentMethod:
+                                  _controller.selectPaymentMethod,
+                              onEditOrigin: _editOrigin,
+                              onEditDestination: _editDestination,
+                              onRequestRide: () => _handleRequestRide(
+                                  state.selectedPaymentMethod),
+                            ),
+                          RideStage.driverAssigned => RideDriverAssignedSheet(
+                              etaLabel:
+                                  selectedProduct?.etaLabel ?? 'Chega em 3 min',
+                              driverName: state.driverDisplayName,
+                              driverRating: state.driver?.rating,
+                              vehiclePlate: state.vehicle?.licensePlate,
+                              vehicleSummary: state.vehicleDisplayName,
+                              onCall: _callDriver,
+                              onChat: _openDriverChat,
+                              onShare: _openNavigationToDriver,
+                              onCancel: _handleCancelRide,
+                              canCancel: state.canCancel,
+                              driverArrived: isDriverArrived,
+                              meetingPointAddress: _origin.title,
+                              onConfirmComing: () =>
+                                  _showPendingActionMessage('Estou indo'),
+                            ),
+                          RideStage.rideInProgress => isDriverArrived
+                              ? RideDriverAssignedSheet(
+                                  etaLabel: selectedProduct?.etaLabel ??
+                                      'Chega em 3 min',
+                                  driverName: state.driverDisplayName,
+                                  driverRating: state.driver?.rating,
+                                  vehiclePlate: state.vehicle?.licensePlate,
+                                  vehicleSummary: state.vehicleDisplayName,
+                                  onCall: _callDriver,
+                                  onChat: _openDriverChat,
+                                  onShare: _openNavigationToDriver,
+                                  onCancel: _handleCancelRide,
+                                  canCancel: state.canCancel,
+                                  driverArrived: true,
+                                  meetingPointAddress: _origin.title,
+                                  onConfirmComing: () =>
+                                      _showPendingActionMessage('Estou indo'),
+                                )
+                              : RideInProgressSheet(
+                                  etaLabel:
+                                      selectedProduct?.etaLabel ?? '8 min',
+                                  driverName: state.driverDisplayName,
+                                  driverRating: state.driver?.rating,
+                                  vehiclePlate: state.vehicle?.licensePlate,
+                                  vehicleSummary: state.vehicleDisplayName,
+                                  onCall: _callDriver,
+                                  onChat: _openDriverChat,
+                                  onShare: () =>
+                                      _showPendingActionMessage('Compartilhar'),
+                                ),
+                          RideStage.completed => RideFinishedSheet(
+                              originTitle: _origin.title,
+                              destinationTitle: _destination.title,
+                              driverName: state.driverDisplayName,
+                              finalPrice:
+                                  selectedProduct?.estimatedPrice ?? 0.0,
+                              paymentMethod: state.paymentSummary,
+                              onFinish: () {
+                                Navigator.of(context)
+                                    .popUntil((route) => route.isFirst);
+                              },
+                              onClearActiveRide: widget.onClearActiveRide,
+                            ),
+                          _ => RideSearchingSheet(
+                              origin: _origin,
+                              destination: _destination,
+                              product: selectedProduct!,
+                              paymentSummary: state.paymentSummary,
+                              statusTitle: state.statusTitle,
+                              statusDescription: state.statusDescription,
+                              driverName: state.driverDisplayName,
+                              driverRating: state.driver?.rating,
+                              vehicleSummary: state.vehicleDisplayName,
+                              plate: state.vehicle?.licensePlate,
+                              hasRealtimeTracking:
+                                  state.realtimeSession != null,
+                              hasDriverLocation: state.hasDriverLocation,
+                              isCancelling: state.isCancelling,
+                              canCancel: state.canCancel,
+                              onSOS: _openSOS,
+                              onCancel: _handleCancelRide,
+                            ),
+                        },
                       ),
                     ),
                   ),
                 ),
-
-              // --- BOTÕES DO MAPA ---
-              if (!isCompleted)
-                Positioned(
-                  top: MediaQuery.of(context).padding.top + 90,
-                  right: 16,
-                  child: Column(
-                    children: [
-                      _MapFloatingButton(icon: Icons.add, onTap: _zoomIn),
-                      const SizedBox(height: 12),
-                      _MapFloatingButton(icon: Icons.remove, onTap: _zoomOut),
-                      const SizedBox(height: 12),
-                      _MapFloatingButton(
-                          icon: Icons.my_location_rounded,
-                          onTap: _centerMap,
-                          isAccent: true),
-                    ],
-                  ),
-                ),
-
-              if (state.stage == RideStage.searchingDriver ||
-                  state.stage == RideStage.driverAssigned ||
-                  state.stage == RideStage.rideInProgress)
-                Positioned(
-                  top: MediaQuery.of(context).padding.top + 90,
-                  left: 16,
-                  child: _MapFloatingButton(
-                    icon: _isUpdatingRoute
-                        ? Icons.hourglass_top_rounded
-                        : Icons.edit_rounded,
-                    onTap: _showEditAddressOptions,
-                    isAccent: true,
-                  ),
-                ),
-
-              // --- ÁREA DAS SHEETS ---
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                top: isCompleted ? 0 : MediaQuery.of(context).padding.top + 90,
-                child: Align(
-                  alignment: isCompleted
-                      ? Alignment.topCenter
-                      : Alignment.bottomCenter,
-                  child: SingleChildScrollView(
-                    physics: const BouncingScrollPhysics(),
-                    child: SafeArea(
-                      top: isCompleted,
-                      bottom: true,
-                      child: switch (state.stage) {
-                        RideStage.confirming => RideConfirmSheet(
-                            origin: _origin,
-                            destination: _destination,
-                            isLoading: state.isLoading,
-                            products: state.products,
-                            selectedProductIndex: state.selectedProductIndex,
-                            selectedPaymentMethod: state.selectedPaymentMethod,
-                            paymentOptions: state.paymentOptions,
-                            onSelectProduct: _controller.selectProduct,
-                            onSelectPaymentMethod:
-                                _controller.selectPaymentMethod,
-                            onEditOrigin: _editOrigin,
-                            onEditDestination: _editDestination,
-                            onRequestRide: () =>
-                                _handleRequestRide(state.selectedPaymentMethod),
-                          ),
-                        RideStage.driverAssigned => RideDriverAssignedSheet(
-                            etaLabel:
-                                selectedProduct?.etaLabel ?? 'Chega em 3 min',
-                            driverName: state.driverDisplayName,
-                            driverRating: state.driver?.rating,
-                            vehiclePlate: state.vehicle?.licensePlate,
-                            vehicleSummary: state.vehicleDisplayName,
-                            onCall: _callDriver,
-                            onChat: _openDriverChat,
-                            onShare: _openNavigationToDriver,
-                            onCancel: _handleCancelRide,
-                            canCancel: state.canCancel,
-                            driverArrived: isDriverArrived,
-                            meetingPointAddress: _origin.title,
-                            onConfirmComing: () =>
-                                _showPendingActionMessage('Estou indo'),
-                          ),
-                        RideStage.rideInProgress => isDriverArrived
-                            ? RideDriverAssignedSheet(
-                                etaLabel: selectedProduct?.etaLabel ??
-                                    'Chega em 3 min',
-                                driverName: state.driverDisplayName,
-                                driverRating: state.driver?.rating,
-                                vehiclePlate: state.vehicle?.licensePlate,
-                                vehicleSummary: state.vehicleDisplayName,
-                                onCall: _callDriver,
-                                onChat: _openDriverChat,
-                                onShare: _openNavigationToDriver,
-                                onCancel: _handleCancelRide,
-                                canCancel: state.canCancel,
-                                driverArrived: true,
-                                meetingPointAddress: _origin.title,
-                                onConfirmComing: () =>
-                                    _showPendingActionMessage('Estou indo'),
-                              )
-                            : RideInProgressSheet(
-                                etaLabel: selectedProduct?.etaLabel ?? '8 min',
-                                driverName: state.driverDisplayName,
-                                driverRating: state.driver?.rating,
-                                vehiclePlate: state.vehicle?.licensePlate,
-                                vehicleSummary: state.vehicleDisplayName,
-                                onCall: _callDriver,
-                                onChat: _openDriverChat,
-                                onShare: () =>
-                                    _showPendingActionMessage('Compartilhar'),
-                              ),
-                        RideStage.completed => RideFinishedSheet(
-                            originTitle: _origin.title,
-                            destinationTitle: _destination.title,
-                            driverName: state.driverDisplayName,
-                            finalPrice: selectedProduct?.estimatedPrice ?? 0.0,
-                            paymentMethod: state.paymentSummary,
-                            onFinish: () {
-                              Navigator.of(context)
-                                  .popUntil((route) => route.isFirst);
-                            },
-                            onClearActiveRide: widget.onClearActiveRide,
-                          ),
-                        _ => RideSearchingSheet(
-                            origin: _origin,
-                            destination: _destination,
-                            product: selectedProduct!,
-                            paymentSummary: state.paymentSummary,
-                            statusTitle: state.statusTitle,
-                            statusDescription: state.statusDescription,
-                            driverName: state.driverDisplayName,
-                            driverRating: state.driver?.rating,
-                            vehicleSummary: state.vehicleDisplayName,
-                            plate: state.vehicle?.licensePlate,
-                            hasRealtimeTracking: state.realtimeSession != null,
-                            hasDriverLocation: state.hasDriverLocation,
-                            isCancelling: state.isCancelling,
-                            canCancel: state.canCancel,
-                            onSOS: _openSOS,
-                            onCancel: _handleCancelRide,
-                          ),
-                      },
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          );
-        },
+              ],
+            );
+          },
+        ),
       ),
     );
   }

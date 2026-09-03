@@ -39,7 +39,7 @@ def hasReleaseSigning =
 android {
     namespace = "br.com.tmjapp.tmjapp"
     compileSdk = 36
-    ndkVersion = "23.1.7779620"
+    ndkVersion = flutter.ndkVersion
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_1_8

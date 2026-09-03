@@ -6,6 +6,7 @@ import 'package:tmjapp/features/payments/data/datasources/payments_remote_dataso
 import 'package:tmjapp/features/payments/domain/entities/payment_method_item.dart';
 import 'package:tmjapp/features/payments/presentation/controllers/payments_controller.dart';
 import 'package:tmjapp/features/payments/presentation/pages/add_balance_page.dart';
+import 'package:tmjapp/features/payments/presentation/pages/payment_method_demo_page.dart';
 // 👇 AQUI: Import da nova tela de adicionar cartão adicionado 👇
 import 'package:tmjapp/features/payments/presentation/pages/add_card_page.dart';
 
@@ -173,36 +174,45 @@ class _PaymentsPageState extends State<PaymentsPage> {
                         ),
                         child: Column(
                           children: [
-                            const _OtherMethodTile(
+                            _OtherMethodTile(
                               icon: Icons.pix_rounded,
-                              iconColor: Color(0xFF16A34A),
-                              iconBgColor: Color(0xFFDCFCE7),
+                              iconColor: const Color(0xFF16A34A),
+                              iconBgColor: const Color(0xFFDCFCE7),
                               title: 'PIX',
                               subtitle: 'Pague instantaneamente',
+                              onTap: () => _openMethodDemo(
+                                PaymentMethodDemo.pix,
+                              ),
                             ),
                             Divider(
                                 height: 1,
                                 thickness: 1,
                                 color: Colors.grey.shade100,
                                 indent: 64),
-                            const _OtherMethodTile(
+                            _OtherMethodTile(
                               icon: Icons.payments_rounded,
-                              iconColor: Color(0xFF15803D),
-                              iconBgColor: Color(0xFFDCFCE7),
+                              iconColor: const Color(0xFF15803D),
+                              iconBgColor: const Color(0xFFDCFCE7),
                               title: 'Dinheiro',
                               subtitle: 'Pague diretamente ao motorista',
+                              onTap: () => _openMethodDemo(
+                                PaymentMethodDemo.cash,
+                              ),
                             ),
                             Divider(
                                 height: 1,
                                 thickness: 1,
                                 color: Colors.grey.shade100,
                                 indent: 64),
-                            const _OtherMethodTile(
+                            _OtherMethodTile(
                               icon: Icons.account_balance_wallet_rounded,
-                              iconColor: Color(0xFF334155),
-                              iconBgColor: Color(0xFFF1F5F9),
+                              iconColor: const Color(0xFF334155),
+                              iconBgColor: const Color(0xFFF1F5F9),
                               title: 'Google Pay',
                               subtitle: 'Configurado via dispositivo',
+                              onTap: () => _openMethodDemo(
+                                PaymentMethodDemo.googlePay,
+                              ),
                             ),
                           ],
                         ),
@@ -281,6 +291,14 @@ class _PaymentsPageState extends State<PaymentsPage> {
             ? 'Cartão salvo com sucesso!'
             : 'Cartão atualizado com sucesso!'),
         backgroundColor: const Color(0xFF16A34A),
+      ),
+    );
+  }
+
+  void _openMethodDemo(PaymentMethodDemo method) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => PaymentMethodDemoPage(method: method),
       ),
     );
   }
@@ -622,6 +640,7 @@ class _OtherMethodTile extends StatelessWidget {
     required this.iconBgColor,
     required this.title,
     required this.subtitle,
+    required this.onTap,
   });
 
   final IconData icon;
@@ -629,49 +648,53 @@ class _OtherMethodTile extends StatelessWidget {
   final Color iconBgColor;
   final String title;
   final String subtitle;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: iconBgColor,
-              shape: BoxShape.circle,
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: iconBgColor,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: iconColor, size: 20),
             ),
-            child: Icon(icon, color: iconColor, size: 20),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: _textDark,
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: _textDark,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: _textLight,
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: _textLight,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          Icon(Icons.chevron_right_rounded, color: Colors.grey.shade400),
-        ],
+            Icon(Icons.chevron_right_rounded, color: Colors.grey.shade400),
+          ],
+        ),
       ),
     );
   }

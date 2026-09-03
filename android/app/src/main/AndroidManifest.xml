@@ -2,7 +2,7 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
-        android:label="TMJ Passageiro"
+        android:label="TMJ"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher_passenger"
         android:roundIcon="@mipmap/ic_launcher_round_passenger">
