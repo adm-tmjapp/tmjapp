@@ -102,6 +102,13 @@ class _SignInPageState extends State<SignInPage> {
     }
   }
 
+  Future<void> _submitSignIn() async {
+    _controller
+      ..updateIdentifier(_identifierController.text)
+      ..updatePassword(_passwordController.text);
+    await _controller.signIn();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -124,7 +131,7 @@ class _SignInPageState extends State<SignInPage> {
                   onIdentifierChanged: _controller.updateIdentifier,
                   onPasswordChanged: _controller.updatePassword,
                   onRememberMeChanged: _controller.toggleRememberMe,
-                  onSignIn: _controller.signIn,
+                  onSignIn: _submitSignIn,
                   onBiometricSignIn: _controller.signInWithBiometrics,
                   onForgotPassword: () {
                     Navigator.of(context).pushNamed(AppRoutes.forgotPassword);
