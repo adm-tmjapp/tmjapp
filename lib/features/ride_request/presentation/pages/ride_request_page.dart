@@ -1176,6 +1176,7 @@ class _RideRequestPageState extends State<RideRequestPage>
                               onEditDestination: _editDestination,
                               onRequestRide: () => _handleRequestRide(
                                   state.selectedPaymentMethod),
+                              friendDriverName: widget.args.friendDriverName,
                             ),
                           RideStage.driverAssigned => RideDriverAssignedSheet(
                               etaLabel:

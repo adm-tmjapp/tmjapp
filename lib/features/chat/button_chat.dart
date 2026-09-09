@@ -53,7 +53,14 @@ class ChatMessage {
 // --- TELA PRINCIPAL ---
 
 class ChatScreen extends StatefulWidget {
-  const ChatScreen({super.key});
+  const ChatScreen({
+    super.key,
+    this.driverName = 'Motorista',
+    this.driverRating,
+  });
+
+  final String driverName;
+  final double? driverRating;
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -63,38 +70,13 @@ class _ChatScreenState extends State<ChatScreen> {
   final Color primaryColor = const Color(0xFFC82A75);
   final String driverAvatar =
       'https://i.pravatar.cc/150?img=11'; // Placeholder Motorista
-  final String passengerAvatar =
-      'https://i.pravatar.cc/150?img=12'; // Placeholder Passageiro
 
   late List<ChatMessage> messages;
 
   @override
   void initState() {
     super.initState();
-    // Dados mockados baseados no seu layout
-    messages = [
-      ChatMessage(
-        text: 'Olá! Já estou a caminho do local de embarque.',
-        senderName: 'João Santos',
-        time: '14:02',
-        isMe: false,
-        avatarUrl: driverAvatar,
-      ),
-      ChatMessage(
-        text: 'Combinado, estou aguardando na calçada.',
-        senderName: 'Você',
-        time: '14:03',
-        isMe: true,
-        avatarUrl: passengerAvatar,
-      ),
-      ChatMessage(
-        text: 'Perfeito. Chego em 2 minutos.',
-        senderName: 'João Santos',
-        time: '14:05',
-        isMe: false,
-        avatarUrl: driverAvatar,
-      ),
-    ];
+    messages = [];
   }
 
   @override
@@ -103,7 +85,7 @@ class _ChatScreenState extends State<ChatScreen> {
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () {}, // Ação de voltar
+          onPressed: () => Navigator.of(context).maybePop(),
         ),
         title: const Text('Chat com Motorista'),
         actions: [
@@ -117,8 +99,8 @@ class _ChatScreenState extends State<ChatScreen> {
         children: [
           // Cabeçalho do Motorista
           DriverHeader(
-            name: 'João Santos',
-            rating: '4.9',
+            name: widget.driverName,
+            rating: widget.driverRating?.toStringAsFixed(1) ?? '--',
             avatarUrl: driverAvatar,
             primaryColor: primaryColor,
           ),
@@ -268,7 +250,7 @@ class MessageBubble extends StatelessWidget {
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.03),
+                        color: Colors.black.withValues(alpha: 0.03),
                         blurRadius: 5,
                         offset: const Offset(0, 2),
                       ),
@@ -343,8 +325,8 @@ class ChatInputArea extends StatelessWidget {
                             const Color(0xFFF3F4F6), // Cinza bem claro do input
                         borderRadius: BorderRadius.circular(24),
                       ),
-                      child: TextField(
-                        decoration: const InputDecoration(
+                      child: const TextField(
+                        decoration: InputDecoration(
                           hintText: 'Envie uma mensagem...',
                           hintStyle: TextStyle(color: Colors.black54),
                           border: InputBorder.none,
@@ -379,7 +361,7 @@ class ChatInputArea extends StatelessWidget {
       margin: const EdgeInsets.only(right: 8),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
-        color: primaryColor.withOpacity(0.08), // Fundo rosa clarinho
+        color: primaryColor.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(

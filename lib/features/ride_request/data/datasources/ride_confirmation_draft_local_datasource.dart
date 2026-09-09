@@ -22,6 +22,9 @@ class RideConfirmationDraftLocalDataSource {
                   'longitude': point.longitude,
                 })
             .toList(),
+        'friendDriverId': args.friendDriverId,
+        'friendDriverName': args.friendDriverName,
+        'friendDriverPhone': args.friendDriverPhone,
       }),
     );
     if (!didSave) {
@@ -58,6 +61,9 @@ class RideConfirmationDraftLocalDataSource {
         origin: origin,
         destination: destination,
         routePoints: routePoints,
+        friendDriverId: json['friendDriverId']?.toString(),
+        friendDriverName: json['friendDriverName']?.toString(),
+        friendDriverPhone: json['friendDriverPhone']?.toString(),
       );
     } catch (_) {
       await clear();

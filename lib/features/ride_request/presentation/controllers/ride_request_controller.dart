@@ -78,6 +78,8 @@ class RideRequestController extends ChangeNotifier
         userId: _args.userId,
         origin: _args.origin,
         destination: _args.destination,
+        friendDriverId: _args.friendDriverId,
+        friendDriverPhone: _args.friendDriverPhone,
       );
       if (isDisposed) return;
       print('====== DADOS RECEBIDOS DA API ======');

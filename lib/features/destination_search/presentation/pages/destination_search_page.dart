@@ -14,9 +14,18 @@ import 'package:tmjapp/features/destination_search/presentation/controllers/dest
 import 'package:tmjapp/features/destination_search/presentation/widgets/destination_quick_chip.dart';
 import 'package:tmjapp/features/destination_search/presentation/widgets/place_suggestion_tile.dart';
 import 'package:tmjapp/features/destination_search/presentation/widgets/recent_destination_tile.dart';
+import 'package:tmjapp/features/friend_ride/domain/entities/friend_driver.dart';
+import 'package:tmjapp/features/friend_ride/presentation/pages/friend_driver_search_page.dart';
 
 class DestinationSearchPage extends StatefulWidget {
-  const DestinationSearchPage({super.key});
+  const DestinationSearchPage({
+    super.key,
+    this.initialFriendDriver,
+    this.onFriendDriverSelected,
+  });
+
+  final FriendDriver? initialFriendDriver;
+  final ValueChanged<FriendDriver>? onFriendDriverSelected;
 
   @override
   State<DestinationSearchPage> createState() => _DestinationSearchPageState();
@@ -28,11 +37,13 @@ class _DestinationSearchPageState extends State<DestinationSearchPage> {
   late final FocusNode _queryFocusNode;
   String? _lastErrorMessage;
   String? _lastOriginErrorMessage;
+  FriendDriver? _friendDriver;
 
   @override
   void initState() {
     super.initState();
     _queryController = TextEditingController();
+    _friendDriver = widget.initialFriendDriver;
     _queryFocusNode = FocusNode();
     final repository = DestinationSearchRepositoryImpl(
       localDataSource: DestinationSearchLocalDataSource(),
@@ -139,6 +150,17 @@ class _DestinationSearchPageState extends State<DestinationSearchPage> {
     }
 
     Navigator.of(context).pop(result);
+  }
+
+  Future<void> _openFriendDriverSearch() async {
+    FocusScope.of(context).unfocus();
+    final driver = await Navigator.of(context).push<FriendDriver>(
+      MaterialPageRoute(builder: (_) => const FriendDriverSearchPage()),
+    );
+    if (!mounted || driver == null) return;
+    setState(() => _friendDriver = driver);
+    widget.onFriendDriverSelected?.call(driver);
+    _queryFocusNode.requestFocus();
   }
 
   IconData _recentIconForIndex(int index) {
@@ -259,6 +281,11 @@ class _DestinationSearchPageState extends State<DestinationSearchPage> {
                                         ),
                                       ],
                                     ),
+                                  ),
+                                  const SizedBox(height: 14),
+                                  _FriendRideButton(
+                                    driver: _friendDriver,
+                                    onTap: _openFriendDriverSearch,
                                   ),
                                   const SizedBox(height: 22),
                                   Text(
@@ -390,6 +417,59 @@ class _DestinationSearchPageState extends State<DestinationSearchPage> {
               ],
             );
           },
+        ),
+      ),
+    );
+  }
+}
+
+class _FriendRideButton extends StatelessWidget {
+  const _FriendRideButton({required this.driver, required this.onTap});
+
+  final FriendDriver? driver;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasDriver = driver != null;
+    return SizedBox(
+      width: double.infinity,
+      height: 50,
+      child: OutlinedButton.icon(
+        onPressed: onTap,
+        style: OutlinedButton.styleFrom(
+          foregroundColor: const Color(0xFFD22776),
+          backgroundColor: hasDriver ? const Color(0xFFFDF2F8) : Colors.white,
+          side: const BorderSide(color: Color(0xFFD22776)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          alignment: Alignment.centerLeft,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+        ),
+        icon: Icon(
+          hasDriver ? Icons.check_circle_rounded : Icons.people_alt_outlined,
+          size: 21,
+        ),
+        label: Expanded(
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  hasDriver
+                      ? 'Motorista amigo: ${driver!.name}'
+                      : 'Corrida Amigo',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              const Icon(Icons.chevron_right_rounded, size: 21),
+            ],
+          ),
         ),
       ),
     );

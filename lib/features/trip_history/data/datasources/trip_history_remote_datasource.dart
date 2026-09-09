@@ -49,6 +49,9 @@ class TripHistoryRemoteDataSource {
         0;
     final status = _mapStatus(json['status']?.toString());
     final payment = _mapPaymentMethod(json['payment_method']?.toString());
+    final acceptedAt = json['acceptedAt'] ?? json['accepted_at'];
+    final hasDriverAccepted = (driver != null && driver.isNotEmpty) ||
+        (acceptedAt != null && acceptedAt.toString().isNotEmpty);
 
     return TripHistoryItem(
       id: (json['_id'] ?? json['id'] ?? '').toString(),
@@ -74,6 +77,7 @@ class TripHistoryRemoteDataSource {
       rating: (driver?['rating'] as num?)?.toDouble() ?? 5,
       latitude: (pickup?['latitude'] as num?)?.toDouble() ?? 0.0,
       longitude: (pickup?['longitude'] as num?)?.toDouble() ?? 0.0,
+      hasDriverAccepted: hasDriverAccepted,
     );
   }
 

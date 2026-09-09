@@ -392,17 +392,32 @@ class _DriverCard extends StatelessWidget {
             ],
           ),
         ),
-        Container(
-          width: 36,
-          height: 36,
-          decoration: BoxDecoration(
-            color: Colors.transparent,
-            shape: BoxShape.circle,
-            border: Border.all(color: const Color(0xFFF1F5F9), width: 1.5),
+        if (item.hasDriverAccepted)
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: Colors.transparent,
+              shape: BoxShape.circle,
+              border: Border.all(color: const Color(0xFFF1F5F9), width: 1.5),
+            ),
+            child: IconButton(
+              onPressed: () => Navigator.of(context).pushNamed(
+                AppRoutes.chat,
+                arguments: {
+                  'driverName': item.driverName,
+                  'driverRating': item.rating,
+                },
+              ),
+              padding: EdgeInsets.zero,
+              tooltip: 'Abrir chat com o motorista',
+              icon: const Icon(
+                Icons.chat_bubble_outline_rounded,
+                color: Color(0xFFC92D7A),
+                size: 16,
+              ),
+            ),
           ),
-          child: const Icon(Icons.chat_bubble_outline_rounded,
-              color: Color(0xFFC92D7A), size: 16),
-        ),
       ],
     );
   }

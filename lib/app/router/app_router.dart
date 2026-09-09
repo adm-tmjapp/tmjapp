@@ -21,6 +21,7 @@ import 'package:tmjapp/features/profile/presentation/pages/saved_addresses_page.
 import 'package:tmjapp/features/ride_request/domain/entities/ride_request_args.dart';
 import 'package:tmjapp/features/profile/presentation/pages/security_and_terms_page.dart';
 import 'package:tmjapp/features/profile/presentation/pages/promotions_coupons_page.dart';
+import 'package:tmjapp/features/chat/button_chat.dart';
 
 class AppRoutes {
   static const splash = '/';
@@ -43,6 +44,7 @@ class AppRoutes {
   static const addFavoriteAddress = '/favorites/add-address';
   static const securityAndTerms = '/security-and-terms';
   static const promotionsAndCoupons = '/promotions-coupons';
+  static const chat = '/chat';
 }
 
 class AppRouter {
@@ -91,6 +93,15 @@ class AppRouter {
       case AppRoutes.tripHistory:
         return MaterialPageRoute(
           builder: (_) => const TripHistoryPage(),
+          settings: settings,
+        );
+      case AppRoutes.chat:
+        final args = settings.arguments as Map<String, dynamic>?;
+        return MaterialPageRoute(
+          builder: (_) => ChatScreen(
+            driverName: args?['driverName']?.toString() ?? 'Motorista',
+            driverRating: (args?['driverRating'] as num?)?.toDouble(),
+          ),
           settings: settings,
         );
       case AppRoutes.sos:
