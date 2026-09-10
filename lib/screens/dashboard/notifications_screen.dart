@@ -1,17 +1,19 @@
 import 'package:flutter/material.dart';
-import 'package:tmjapp/utils/dimensions.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class NotificationScreen extends StatefulWidget {
+  const NotificationScreen({super.key});
+
   @override
-  _NotificationScreenState createState() => _NotificationScreenState();
+  State<NotificationScreen> createState() => _NotificationScreenState();
 }
 
 class _NotificationScreenState extends State<NotificationScreen> {
-  final List<_NotificationItem> _items = const [
+  static const _initialItems = [
     _NotificationItem(
       title: 'Verificação de Segurança',
-      description: 'Um novo dispositivo acessou sua conta em São Paulo, SP. Foi você?',
+      description:
+          'Um novo dispositivo acessou sua conta em São Paulo, SP. Foi você?',
       category: 'Segurança',
       timeLabel: 'Agora',
       color: Color(0xFFF06291),
@@ -20,7 +22,8 @@ class _NotificationScreenState extends State<NotificationScreen> {
     ),
     _NotificationItem(
       title: 'Cupom de 20% OFF!',
-      description: 'Use o código MAGENTA20 na sua próxima viagem para o aeroporto.',
+      description:
+          'Use o código MAGENTA20 na sua próxima viagem para o aeroporto.',
       category: 'Promoções',
       timeLabel: '2h atrás',
       color: Color(0xFF42B46A),
@@ -29,7 +32,8 @@ class _NotificationScreenState extends State<NotificationScreen> {
     ),
     _NotificationItem(
       title: 'Recibo da Viagem',
-      description: 'Sua viagem de ontem às 18:30 foi finalizada. O valor de R\$ 24,90 foi debitado.',
+      description:
+          'Sua viagem de ontem às 18:30 foi finalizada. O valor de R\$ 24,90 foi debitado.',
       category: 'Recibos',
       timeLabel: 'Ontem',
       color: Color(0xFF9CA3AF),
@@ -44,7 +48,8 @@ class _NotificationScreenState extends State<NotificationScreen> {
     ),
     _NotificationItem(
       title: 'Perfil Verificado',
-      description: 'Parabéns! Sua conta agora possui o selo de confiança TMJApp.',
+      description:
+          'Parabéns! Sua conta agora possui o selo de confiança TMJApp.',
       category: 'Segurança',
       timeLabel: '3 dias atrás',
       color: Color(0xFF9CA3AF),
@@ -52,6 +57,32 @@ class _NotificationScreenState extends State<NotificationScreen> {
       indicatorColor: Color(0xFF6B7280),
     ),
   ];
+
+  late final List<_NotificationItem> _items = List.of(_initialItems);
+
+  bool get _hasUnreadNotifications =>
+      _items.any((item) => !item.isPromo && !item.isRead);
+
+  void _markAllAsRead() {
+    if (!_hasUnreadNotifications) return;
+
+    setState(() {
+      for (var index = 0; index < _items.length; index++) {
+        final item = _items[index];
+        if (!item.isPromo) {
+          _items[index] = item.copyWith(isRead: true);
+        }
+      }
+    });
+
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        const SnackBar(
+          content: Text('Todas as notificações foram marcadas como lidas.'),
+        ),
+      );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -79,13 +110,16 @@ class _NotificationScreenState extends State<NotificationScreen> {
                     ),
                   ),
                   TextButton(
-                    onPressed: () {},
+                    key: const Key('mark-all-notifications-read'),
+                    onPressed: _hasUnreadNotifications ? _markAllAsRead : null,
                     child: Text(
                       'Marcar todas como lidas',
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
-                        color: const Color(0xFFC92D7A),
+                        color: _hasUnreadNotifications
+                            ? const Color(0xFFC92D7A)
+                            : const Color(0xFF98A2B3),
                       ),
                     ),
                   ),
@@ -163,7 +197,7 @@ class _NotificationCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
+            color: Colors.black.withValues(alpha: 0.06),
             blurRadius: 14,
             offset: const Offset(0, 8),
           ),
@@ -177,7 +211,7 @@ class _NotificationCard extends StatelessWidget {
             width: 46,
             height: 46,
             decoration: BoxDecoration(
-              color: item.color.withOpacity(0.12),
+              color: item.color.withValues(alpha: 0.12),
               shape: BoxShape.circle,
             ),
             child: Icon(item.icon, color: item.color, size: 24),
@@ -200,14 +234,16 @@ class _NotificationCard extends StatelessWidget {
                         ),
                       ),
                     ),
-                    Container(
-                      width: 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: item.indicatorColor,
-                        shape: BoxShape.circle,
+                    if (!item.isRead)
+                      Container(
+                        key: const Key('unread-notification-indicator'),
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: item.indicatorColor,
+                          shape: BoxShape.circle,
+                        ),
                       ),
-                    ),
                   ],
                 ),
                 const SizedBox(height: 6),
@@ -277,7 +313,7 @@ class _PromoCard extends StatelessWidget {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
+            color: Colors.black.withValues(alpha: 0.08),
             blurRadius: 16,
             offset: const Offset(0, 10),
           ),
@@ -301,7 +337,7 @@ class _PromoCard extends StatelessWidget {
             style: GoogleFonts.plusJakartaSans(
               fontSize: 13,
               fontWeight: FontWeight.w600,
-              color: Colors.white.withOpacity(0.9),
+              color: Colors.white.withValues(alpha: 0.9),
             ),
           ),
           const SizedBox(height: 14),
@@ -341,6 +377,7 @@ class _NotificationItem {
     required this.color,
     required this.icon,
     required this.indicatorColor,
+    this.isRead = false,
   })  : isPromo = false,
         gradient = null,
         ctaLabel = null;
@@ -355,6 +392,7 @@ class _NotificationItem {
         color = Colors.white,
         icon = Icons.star,
         indicatorColor = Colors.white,
+        isRead = true,
         isPromo = true;
 
   final String title;
@@ -364,7 +402,21 @@ class _NotificationItem {
   final Color color;
   final IconData icon;
   final Color indicatorColor;
+  final bool isRead;
   final bool isPromo;
   final List<Color>? gradient;
   final String? ctaLabel;
+
+  _NotificationItem copyWith({bool? isRead}) {
+    return _NotificationItem(
+      title: title,
+      description: description,
+      category: category,
+      timeLabel: timeLabel,
+      color: color,
+      icon: icon,
+      indicatorColor: indicatorColor,
+      isRead: isRead ?? this.isRead,
+    );
+  }
 }

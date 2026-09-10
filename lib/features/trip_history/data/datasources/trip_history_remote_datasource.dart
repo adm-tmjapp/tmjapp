@@ -104,6 +104,10 @@ class TripHistoryRemoteDataSource {
         return 'Dinheiro';
       case 'pix':
         return 'Pix';
+      case 'google_pay':
+      case 'googlepay':
+      case 'gpay':
+        return 'Google Pay';
       case 'debit_card':
       case 'debit':
         return 'Cartão de Debito';

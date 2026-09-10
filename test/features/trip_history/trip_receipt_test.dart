@@ -1,8 +1,20 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tmjapp/features/trip_history/domain/entities/trip_history_item.dart';
 import 'package:tmjapp/features/trip_history/presentation/pages/trip_detail_page.dart';
 
 void main() {
+  test('maps trip payment labels to their payment method icons', () {
+    expect(paymentIconForLabel('Dinheiro'), Icons.payments_rounded);
+    expect(paymentIconForLabel('Cartão de Crédito'), Icons.credit_card_rounded);
+    expect(paymentIconForLabel('credit_card'), Icons.credit_card_rounded);
+    expect(paymentIconForLabel('Google Pay'),
+        Icons.account_balance_wallet_rounded);
+    expect(paymentIconForLabel('google_pay'),
+        Icons.account_balance_wallet_rounded);
+    expect(paymentIconForLabel('Pix'), Icons.pix_rounded);
+  });
+
   test('buildTripReceiptText includes the trip receipt details', () {
     const item = TripHistoryItem(
       id: 'trip-123',

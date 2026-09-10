@@ -107,6 +107,8 @@ class _PromotionsCouponsPageState extends State<PromotionsCouponsPage> {
                 SizedBox(
                     width: double.infinity,
                     child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      foregroundColor: Colors.black),
                       onPressed: _selected == coupon.code
                           ? null
                           : () async {
@@ -128,6 +130,8 @@ class _PromotionsCouponsPageState extends State<PromotionsCouponsPage> {
                 SizedBox(
                     width: double.infinity,
                     child: TextButton.icon(
+                      style: TextButton.styleFrom(
+                          foregroundColor: Colors.black),
                       icon: const Icon(Icons.delete_outline),
                       label: const Text('REMOVER CUPOM'),
                       onPressed: () async {
