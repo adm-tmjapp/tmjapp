@@ -13,6 +13,8 @@ abstract class RideRequestRepository {
     required String userId,
     required RouteLocation origin,
     required RouteLocation destination,
+    String? friendDriverId,
+    String? friendDriverPhone,
   });
 
   Future<RideStatusSnapshot> checkoutRide({

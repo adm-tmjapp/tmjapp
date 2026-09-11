@@ -12,6 +12,9 @@ class RideRequestArgs {
     this.existingRideStatus,
     this.initialProduct,
     this.initialPaymentMethodLabel,
+    this.friendDriverId,
+    this.friendDriverName,
+    this.friendDriverPhone,
   });
 
   final String userId;
@@ -22,6 +25,11 @@ class RideRequestArgs {
   final String? existingRideStatus;
   final RideProduct? initialProduct;
   final String? initialPaymentMethodLabel;
+  final String? friendDriverId;
+  final String? friendDriverName;
+  final String? friendDriverPhone;
+
+  bool get isFriendRide => (friendDriverId ?? '').trim().isNotEmpty;
 
   bool get hasExistingRide =>
       (existingRideId ?? '').trim().isNotEmpty &&

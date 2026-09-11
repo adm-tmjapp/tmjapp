@@ -5,6 +5,34 @@ import 'package:share_plus/share_plus.dart';
 import 'package:tmjapp/app/router/app_router.dart';
 import 'package:tmjapp/features/trip_history/domain/entities/trip_history_item.dart';
 
+IconData paymentIconForLabel(String paymentLabel) {
+  final normalized =
+      paymentLabel.trim().toLowerCase().replaceAll(RegExp(r'[_-]+'), ' ');
+
+  if (normalized.contains('pix')) {
+    return Icons.pix_rounded;
+  }
+  if (normalized.contains('dinheiro') || normalized.contains('cash')) {
+    return Icons.payments_rounded;
+  }
+  if (normalized.contains('google pay') ||
+      normalized.contains('googlepay') ||
+      normalized.contains('gpay')) {
+    return Icons.account_balance_wallet_rounded;
+  }
+  if (normalized.contains('cartão') ||
+      normalized.contains('cartao') ||
+      normalized.contains('card') ||
+      normalized.contains('crédito') ||
+      normalized.contains('credito') ||
+      normalized.contains('débito') ||
+      normalized.contains('debito')) {
+    return Icons.credit_card_rounded;
+  }
+
+  return Icons.account_balance_wallet_rounded;
+}
+
 String buildTripReceiptText(TripHistoryItem item) {
   final price = item.price.toStringAsFixed(2).replaceAll('.', ',');
 
@@ -392,17 +420,32 @@ class _DriverCard extends StatelessWidget {
             ],
           ),
         ),
-        Container(
-          width: 36,
-          height: 36,
-          decoration: BoxDecoration(
-            color: Colors.transparent,
-            shape: BoxShape.circle,
-            border: Border.all(color: const Color(0xFFF1F5F9), width: 1.5),
+        if (item.hasDriverAccepted)
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: Colors.transparent,
+              shape: BoxShape.circle,
+              border: Border.all(color: const Color(0xFFF1F5F9), width: 1.5),
+            ),
+            child: IconButton(
+              onPressed: () => Navigator.of(context).pushNamed(
+                AppRoutes.chat,
+                arguments: {
+                  'driverName': item.driverName,
+                  'driverRating': item.rating,
+                },
+              ),
+              padding: EdgeInsets.zero,
+              tooltip: 'Abrir chat com o motorista',
+              icon: const Icon(
+                Icons.chat_bubble_outline_rounded,
+                color: Color(0xFFC92D7A),
+                size: 16,
+              ),
+            ),
           ),
-          child: const Icon(Icons.chat_bubble_outline_rounded,
-              color: Color(0xFFC92D7A), size: 16),
-        ),
       ],
     );
   }
@@ -527,22 +570,23 @@ class _PaymentDetailCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final icon = paymentIconForLabel(item.paymentLabel);
+
     return Row(
       children: [
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          width: 40,
+          height: 40,
           decoration: BoxDecoration(
             color: const Color(0xFFF1F5F9),
-            borderRadius: BorderRadius.circular(4),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
           ),
-          // Placeholder simples simulando o logo de cartão da imagem
-          child: Text(
-            'VISA',
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 10,
-              fontWeight: FontWeight.w800,
-              color: const Color(0xFF64748B),
-            ),
+          child: Icon(
+            icon,
+            key: const Key('trip-payment-method-icon'),
+            color: const Color(0xFF3B82F6),
+            size: 22,
           ),
         ),
         const SizedBox(width: 12),
@@ -551,19 +595,11 @@ class _PaymentDetailCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                item.paymentLabel, // Deveria ser "Cartão de Crédito"
+                item.paymentLabel,
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
                   color: const Color(0xFF1E293B),
-                ),
-              ),
-              Text(
-                '•••• 1234', // Mockado para refletir a imagem. Ajustar se a API prover final do cartão.
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: const Color(0xFF64748B),
                 ),
               ),
             ],

@@ -28,24 +28,30 @@ class BaseApi extends BaseClient {
   @override
   Future<Response> post(Uri url,
       {Map<String, String>? headers, Object? body, Encoding? encoding}) {
+    final requestHeaders = <String, String>{...?headers};
+    requestHeaders.putIfAbsent('Content-Type', () => 'application/json');
     return super.post(Uri.parse(baseUrl + url.toString()),
-        headers: headers, body: jsonEncode(body), encoding: encoding);
+        headers: requestHeaders, body: jsonEncode(body), encoding: encoding);
   }
 
   @override
   Future<Response> put(Uri url,
       {Map<String, String>? headers, Object? body, Encoding? encoding}) {
     final requestBody = body is Map || body is List ? jsonEncode(body) : body;
+    final requestHeaders = <String, String>{...?headers};
+    requestHeaders.putIfAbsent('Content-Type', () => 'application/json');
     return super.put(Uri.parse(baseUrl + url.toString()),
-        headers: headers, body: requestBody, encoding: encoding);
+        headers: requestHeaders, body: requestBody, encoding: encoding);
   }
 
   @override
   Future<Response> patch(Uri url,
       {Map<String, String>? headers, Object? body, Encoding? encoding}) {
     final requestBody = body is Map || body is List ? jsonEncode(body) : body;
+    final requestHeaders = <String, String>{...?headers};
+    requestHeaders.putIfAbsent('Content-Type', () => 'application/json');
     return super.patch(Uri.parse(baseUrl + url.toString()),
-        headers: headers, body: requestBody, encoding: encoding);
+        headers: requestHeaders, body: requestBody, encoding: encoding);
   }
 
   @override

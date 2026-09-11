@@ -25,6 +25,8 @@ class RideRequestRemoteDataSource {
     required String userId,
     required RouteLocation origin,
     required RouteLocation destination,
+    String? friendDriverId,
+    String? friendDriverPhone,
   }) async {
     final response = await _baseApi.post(
       Uri.parse('v2/passenger/rides'),
@@ -43,6 +45,12 @@ class RideRequestRemoteDataSource {
             'latitude': destination.latitude,
             'longitude': destination.longitude,
           },
+        },
+        if ((friendDriverId ?? '').trim().isNotEmpty) ...{
+          'ride_mode': 'friend',
+          'preferred_driver_id': friendDriverId!.trim(),
+          if ((friendDriverPhone ?? '').trim().isNotEmpty)
+            'preferred_driver_phone': friendDriverPhone!.trim(),
         },
       },
     );

@@ -45,6 +45,7 @@ class SignUpController extends ChangeNotifier with DisposableChangeNotifier {
         email: _state.email.trim(),
         phone: _normalizedPhone,
         password: _state.password,
+        confirmPassword: _state.confirmPassword,
       );
       if (isDisposed) return;
 

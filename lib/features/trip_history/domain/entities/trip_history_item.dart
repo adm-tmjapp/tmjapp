@@ -19,6 +19,7 @@ class TripHistoryItem {
     required this.rating,
     required this.latitude, // <-- Adicionado
     required this.longitude, // <-- Adicionado
+    this.hasDriverAccepted = false,
   });
 
   final String id;
@@ -40,4 +41,5 @@ class TripHistoryItem {
   final double rating;
   final double latitude; // <-- Adicionado
   final double longitude; // <-- Adicionado
+  final bool hasDriverAccepted;
 }

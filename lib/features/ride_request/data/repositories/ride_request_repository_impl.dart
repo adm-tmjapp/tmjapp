@@ -22,11 +22,15 @@ class RideRequestRepositoryImpl implements RideRequestRepository {
     required String userId,
     required RouteLocation origin,
     required RouteLocation destination,
+    String? friendDriverId,
+    String? friendDriverPhone,
   }) {
     return _remoteDataSource.createRideQuote(
       userId: userId,
       origin: origin,
       destination: destination,
+      friendDriverId: friendDriverId,
+      friendDriverPhone: friendDriverPhone,
     );
   }
 

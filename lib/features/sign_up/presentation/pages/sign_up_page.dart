@@ -96,6 +96,18 @@ class _SignUpPageState extends State<SignUpPage> {
     );
   }
 
+  Future<void> _submitSignUp() async {
+    // Sincroniza diretamente no envio para não depender do último evento de
+    // onChanged (teclados com composição podem mantê-lo pendente).
+    _controller
+      ..updateFullName(_fullNameController.text)
+      ..updateEmail(_emailController.text)
+      ..updatePhone(_phoneController.text)
+      ..updatePassword(_passwordController.text)
+      ..updateConfirmPassword(_confirmPasswordController.text);
+    await _controller.signUp();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -119,7 +131,7 @@ class _SignUpPageState extends State<SignUpPage> {
               onPasswordChanged: _controller.updatePassword,
               onConfirmPasswordChanged: _controller.updateConfirmPassword,
               onAcceptedTermsChanged: _controller.toggleAcceptedTerms,
-              onSignUp: _controller.signUp,
+              onSignUp: _submitSignUp,
               onGoToSignIn: () => _goToSignIn(context),
             );
           },

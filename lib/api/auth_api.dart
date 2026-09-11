@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart';
 import 'package:tmjapp/api/base_api.dart';
 import 'package:tmjapp/data_model/api_response.dart';
@@ -191,6 +192,7 @@ class Authapi {
         "name": "$name $lastName",
         "email": email,
         "password": password,
+        "password_confirmation": password,
         "phone": phone,
         "role": "passenger"
       };
@@ -224,18 +226,47 @@ class Authapi {
     required String email,
     required String phone,
     required String password,
+    required String confirmPassword,
   }) async {
     try {
+      final normalizedName = name.trim();
+      final normalizedEmail = email.trim().toLowerCase();
+      final normalizedPhone = phone.replaceAll(RegExp(r'[^0-9]'), '');
+      if (normalizedName.isEmpty ||
+          normalizedEmail.isEmpty ||
+          normalizedPhone.isEmpty ||
+          password.isEmpty ||
+          confirmPassword.isEmpty) {
+        throw Exception(
+          'Não foi possível cadastrar: um campo obrigatório chegou vazio.',
+        );
+      }
+      if (password != confirmPassword) {
+        throw Exception('As senhas não conferem.');
+      }
       final body = {
-        "name": name,
-        "email": email,
+        "name": normalizedName,
+        "email": normalizedEmail,
         "password": password,
-        "phone": phone,
+        "password_confirmation": confirmPassword,
+        "phone": normalizedPhone,
         "role": "passenger",
       };
 
       final response =
           await baseApi.post(Uri.parse("v2/auth/register"), body: body);
+
+      if (kDebugMode) {
+        debugPrint(
+          'REGISTER status=${response.statusCode} '
+          'nameLength=${normalizedName.length} '
+          'emailLength=${normalizedEmail.length} '
+          'phoneLength=${normalizedPhone.length} '
+          'passwordLength=${password.length} '
+          'confirmationLength=${confirmPassword.length}'
+          '${response.statusCode >= 400 ? ' response=${response.body}' : ''}',
+        );
+      }
 
       if (response.statusCode == 201) {
         final decodedBody = jsonDecode(response.body);

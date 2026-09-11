@@ -73,12 +73,14 @@ class AuthRepositoryImpl implements AuthRepository {
     required String email,
     required String phone,
     required String password,
+    required String confirmPassword,
   }) async {
     final session = await _remoteDataSource.signUp(
       name: name,
       email: email,
       phone: phone,
       password: password,
+      confirmPassword: confirmPassword,
     );
 
     await _localDataSource.saveSession(

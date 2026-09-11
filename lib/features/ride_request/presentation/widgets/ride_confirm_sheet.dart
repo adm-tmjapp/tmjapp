@@ -21,6 +21,7 @@ class RideConfirmSheet extends StatelessWidget {
     required this.onEditOrigin,
     required this.onEditDestination,
     required this.onRequestRide,
+    this.friendDriverName,
   });
 
   final RouteLocation origin;
@@ -35,6 +36,7 @@ class RideConfirmSheet extends StatelessWidget {
   final VoidCallback onEditOrigin;
   final VoidCallback onEditDestination;
   final VoidCallback onRequestRide;
+  final String? friendDriverName;
 
   @override
   Widget build(BuildContext context) {
@@ -69,6 +71,35 @@ class RideConfirmSheet extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 24),
+          if ((friendDriverName ?? '').isNotEmpty) ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFDF2F8),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFFF3C5DC)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.people_alt_outlined,
+                      color: Color(0xFFC92D7A)),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Corrida Amigo com $friendDriverName',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: const Color(0xFF831843),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
           Text(
             'ESCOLHA SEU VEÍCULO',
             style: GoogleFonts.plusJakartaSans(

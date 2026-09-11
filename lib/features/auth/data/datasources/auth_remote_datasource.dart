@@ -11,12 +11,14 @@ class AuthRemoteDataSource {
     required String email,
     required String phone,
     required String password,
+    required String confirmPassword,
   }) async {
     final response = await _authApi.registerPassenger(
       name: name,
       email: email,
       phone: phone,
       password: password,
+      confirmPassword: confirmPassword,
     );
 
     if (response.hasException) {

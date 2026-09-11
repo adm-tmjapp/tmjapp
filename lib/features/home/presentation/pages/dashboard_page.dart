@@ -25,6 +25,7 @@ import 'package:tmjapp/features/profile/presentation/controllers/profile_control
 import 'package:tmjapp/features/profile/presentation/pages/profile_edit_page.dart';
 import 'package:tmjapp/features/profile/domain/entities/profile_details.dart';
 import 'package:tmjapp/features/home/presentation/widgets/peding_payment_page.dart';
+import 'package:tmjapp/features/friend_ride/domain/entities/friend_driver.dart';
 
 // Constantes de cores baseadas no layout da imagem
 const Color _primaryPink = Color(0xFFC92D7A);
@@ -111,7 +112,10 @@ class _DashboardPageState extends State<DashboardPage>
 
   // --- MÉTODOS DE LÓGICA MANTIDOS INTACTOS ---
 
-  Future<void> _openTripPlanner({String? presetLabel}) async {
+  Future<void> _openTripPlanner({
+    String? presetLabel,
+    FriendDriver? friendDriver,
+  }) async {
     if (_controller.state.currentLocation == null) {
       await _showLocationAlert(
         _controller.state.errorMessage ??
@@ -122,10 +126,14 @@ class _DashboardPageState extends State<DashboardPage>
 
     final navigator = Navigator.of(context);
     final messenger = ScaffoldMessenger.of(context);
+    var selectedFriendDriver = friendDriver;
 
     final result = await navigator.push<DestinationSearchResult>(
       MaterialPageRoute(
-        builder: (_) => const DestinationSearchPage(),
+        builder: (_) => DestinationSearchPage(
+          initialFriendDriver: friendDriver,
+          onFriendDriverSelected: (driver) => selectedFriendDriver = driver,
+        ),
       ),
     );
 
@@ -206,6 +214,9 @@ class _DashboardPageState extends State<DashboardPage>
             origin: result.origin,
             destination: result.destination,
             routePoints: routePoints,
+            friendDriverId: selectedFriendDriver?.id,
+            friendDriverName: selectedFriendDriver?.name,
+            friendDriverPhone: selectedFriendDriver?.phoneNumber,
           ),
           onClearActiveRide: _controller.clearActiveRide,
         ),

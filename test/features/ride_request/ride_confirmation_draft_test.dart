@@ -30,6 +30,9 @@ void main() {
       HomeLocation(latitude: -8.01, longitude: -34.90),
       HomeLocation(latitude: -8.02, longitude: -34.91),
     ],
+    friendDriverId: 'driver-1',
+    friendDriverName: 'Carlos Amigo',
+    friendDriverPhone: '81999999999',
   );
 
   test('persists and restores a confirmation draft', () async {
@@ -42,6 +45,10 @@ void main() {
     expect(restored?.origin.title, draft.origin.title);
     expect(restored?.destination.title, draft.destination.title);
     expect(restored?.routePoints, hasLength(2));
+    expect(restored?.isFriendRide, isTrue);
+    expect(restored?.friendDriverId, draft.friendDriverId);
+    expect(restored?.friendDriverName, draft.friendDriverName);
+    expect(restored?.friendDriverPhone, draft.friendDriverPhone);
 
     await dataSource.clear();
     expect(await dataSource.load(), isNull);
