@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 env:
-  API_BASE_URL: https://tmjapp-api-53m7i55c3q-rj.a.run.app/api/
+  API_BASE_URL: https://api.tmjapp.com.br/api/
   RELEASE_NOTES: "Build automatico da main: ${{ github.sha }}"
 
 jobs:
