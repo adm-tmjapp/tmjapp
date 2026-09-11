@@ -1,10 +1,13 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:tmjapp/api/base_api.dart';
+import 'dart:convert';
 import 'package:tmjapp/core/presentation/controllers/disposable_change_notifier.dart';
 import 'package:tmjapp/features/destination_search/domain/entities/route_location.dart';
 import 'package:tmjapp/features/ride_request/domain/entities/ride_payment_method.dart';
 import 'package:tmjapp/features/ride_request/domain/entities/ride_request_args.dart';
+import 'package:tmjapp/features/ride_request/domain/entities/ride_status_snapshot.dart';
 import 'package:tmjapp/features/ride_request/domain/entities/ride_stage.dart';
 import 'package:tmjapp/features/ride_request/domain/usecases/cancel_ride_usecase.dart';
 import 'package:tmjapp/features/ride_request/domain/usecases/checkout_ride_usecase.dart';
@@ -52,6 +55,8 @@ class RideRequestController extends ChangeNotifier
   final CancelRideUseCase _cancelRideUseCase;
   final UpdateRideRouteUseCase _updateRideRouteUseCase;
   Timer? _statusPollingTimer;
+  bool _checkoutPreparedForPayment = false;
+  final BaseApi _paymentApi = BaseApi();
 
   RideRequestState _state = RideRequestState.initial();
 
@@ -392,12 +397,31 @@ class RideRequestController extends ChangeNotifier
     notifyListeners();
 
     try {
-      final checkoutResult = await _checkoutRideUseCase.execute(
-        rideId: _state.rideId!,
-        product: selectedProduct,
-        paymentMethod: _state.selectedPaymentMethod,
-        // cardId: cardId,  <-- COMENTE OU APAGUE ESTA LINHA POR ENQUANTO
-      );
+      final checkoutResult = _checkoutPreparedForPayment
+          ? RideStatusSnapshot(
+              rideId: _state.rideId!,
+              status: _state.rideStatus ?? 'pending',
+              updatedAt: _state.statusUpdatedAt,
+            )
+          : await _checkoutRideUseCase.execute(
+              rideId: _state.rideId!,
+              product: selectedProduct,
+              paymentMethod: _state.selectedPaymentMethod,
+            );
+      _checkoutPreparedForPayment = false;
+      if (_state.selectedPaymentMethod == RidePaymentMethod.card) {
+        if (cardId == null || cardId.trim().isEmpty) {
+          throw Exception('Selecione um cartão válido.');
+        }
+        final paymentResponse = await _paymentApi.post(
+          Uri.parse('v2/passenger/rides/${_state.rideId}/payments/card/saved'),
+          body: {'paymentMethodId': cardId},
+        );
+        if (paymentResponse.statusCode != 201) {
+          final body = jsonDecode(paymentResponse.body);
+          throw Exception(body is Map ? body['message'] : 'Não foi possível processar o cartão.');
+        }
+      }
       if (isDisposed) return;
       final nextStage = _resolveStage(checkoutResult.status);
 
@@ -422,5 +446,33 @@ class RideRequestController extends ChangeNotifier
     }
 
     notifyListeners();
+  }
+
+  Future<bool> prepareCheckoutForPayment() async {
+    final product = _state.selectedProduct;
+    final rideId = _state.rideId;
+    if (product == null || rideId == null || rideId.trim().isEmpty) return false;
+    try {
+      final result = await _checkoutRideUseCase.execute(
+        rideId: rideId,
+        product: product,
+        paymentMethod: _state.selectedPaymentMethod,
+        deferDispatch: true,
+      );
+      _checkoutPreparedForPayment = true;
+      _state = _state.copyWith(
+        rideStatus: result.status,
+        statusUpdatedAt: result.updatedAt,
+        clearErrorMessage: true,
+      );
+      notifyListeners();
+      return true;
+    } catch (error) {
+      _state = _state.copyWith(
+        errorMessage: error.toString().replaceFirst('Exception: ', ''),
+      );
+      notifyListeners();
+      return false;
+    }
   }
 }

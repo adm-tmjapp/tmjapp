@@ -430,6 +430,7 @@ class _RideRequestPageState extends State<RideRequestPage>
   Future<void> _handleRequestRide(RidePaymentMethod paymentMethod) async {
     try {
       if (paymentMethod == RidePaymentMethod.pix) {
+        if (!await _controller.prepareCheckoutForPayment()) return;
         final success = await _openPixPayment();
         if (success == true) {
           await _controller.requestRide();
@@ -440,6 +441,7 @@ class _RideRequestPageState extends State<RideRequestPage>
         );
 
         if (selectedCardId != null) {
+          if (!await _controller.prepareCheckoutForPayment()) return;
           await _controller.requestRide(cardId: selectedCardId);
         }
       } else if (paymentMethod == RidePaymentMethod.cash) {
@@ -454,7 +456,11 @@ class _RideRequestPageState extends State<RideRequestPage>
     if (amount <= 0.0) return false;
     final result = await Navigator.of(context).pushNamed(
       AppRoutes.pixPayment,
-      arguments: {'amount': amount, 'rideArgs': widget.args},
+      arguments: {
+        'amount': amount,
+        'rideId': _controller.state.rideId,
+        'rideArgs': widget.args,
+      },
     );
     return result == true;
   }

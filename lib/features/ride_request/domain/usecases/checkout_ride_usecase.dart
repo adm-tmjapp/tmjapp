@@ -12,11 +12,13 @@ class CheckoutRideUseCase {
     required String rideId,
     required RideProduct product,
     required RidePaymentMethod paymentMethod,
+    bool deferDispatch = false,
   }) {
     return _repository.checkoutRide(
       rideId: rideId,
       product: product,
       paymentMethod: paymentMethod,
+      deferDispatch: deferDispatch,
     );
   }
 }

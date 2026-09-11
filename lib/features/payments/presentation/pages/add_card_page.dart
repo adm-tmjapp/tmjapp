@@ -14,11 +14,13 @@ class CardFormResult {
     required this.cardNumberDigits,
     required this.holderName,
     required this.expiry,
+    required this.ccv,
   });
 
   final String cardNumberDigits;
   final String holderName;
   final String expiry;
+  final String ccv;
 }
 
 class AddCardPage extends StatefulWidget {
@@ -63,6 +65,7 @@ class _AddCardPageState extends State<AddCardPage> {
           cardNumberDigits: digits,
           holderName: _nameController.text.trim().toUpperCase(),
           expiry: _expiryController.text,
+          ccv: _cvvController.text,
         ),
       );
     }

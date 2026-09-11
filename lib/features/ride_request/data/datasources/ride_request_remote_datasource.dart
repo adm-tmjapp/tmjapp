@@ -84,6 +84,7 @@ class RideRequestRemoteDataSource {
     required String rideId,
     required RideProduct product,
     required RidePaymentMethod paymentMethod,
+    bool deferDispatch = false,
   }) async {
     final response = await _baseApi.put(
       Uri.parse('v2/passenger/rides/$rideId/checkout'),
@@ -95,6 +96,7 @@ class RideRequestRemoteDataSource {
           'description': product.subtitle,
         },
         'payment_method': _mapPaymentMethod(paymentMethod),
+        'deferDispatch': deferDispatch,
       },
     );
 

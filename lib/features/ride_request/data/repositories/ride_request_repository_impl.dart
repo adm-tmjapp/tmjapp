@@ -35,11 +35,13 @@ class RideRequestRepositoryImpl implements RideRequestRepository {
     required String rideId,
     required RideProduct product,
     required RidePaymentMethod paymentMethod,
+    bool deferDispatch = false,
   }) {
     return _remoteDataSource.checkoutRide(
       rideId: rideId,
       product: product,
       paymentMethod: paymentMethod,
+      deferDispatch: deferDispatch,
     );
   }
 

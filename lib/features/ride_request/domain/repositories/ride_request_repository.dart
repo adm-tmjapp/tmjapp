@@ -19,6 +19,7 @@ abstract class RideRequestRepository {
     required String rideId,
     required RideProduct product,
     required RidePaymentMethod paymentMethod,
+    bool deferDispatch = false,
   });
 
   Future<RideStatusSnapshot> getRideStatus(String rideId);

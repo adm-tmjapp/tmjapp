@@ -137,6 +137,7 @@ class AppRouter {
         double amount = 0.0;
         bool paymentValidated = false;
         RideRequestArgs? rideArgs;
+        String? rideId;
 
         if (args is double) {
           amount = args;
@@ -144,6 +145,7 @@ class AppRouter {
           amount = (args['amount'] as double?) ?? 0.0;
           paymentValidated = (args['validated'] as bool?) ?? false;
           rideArgs = args['rideArgs'] as RideRequestArgs?;
+          rideId = args['rideId']?.toString();
         }
 
         return MaterialPageRoute(
@@ -151,6 +153,7 @@ class AppRouter {
             amount: amount,
             paymentValidated: paymentValidated,
             rideArgs: rideArgs,
+            rideId: rideId,
           ),
           settings: settings,
         );

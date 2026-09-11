@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
+import 'package:tmjapp/api/base_api.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:tmjapp/features/payments/presentation/pages/add_card_page.dart';
 
@@ -25,15 +27,41 @@ class RegisteredCardsPage extends StatefulWidget {
 }
 
 class _RegisteredCardsPageState extends State<RegisteredCardsPage> {
-  // Simulando cartões cadastrados
-  final List<CreditCardModel> _cards = [
-    CreditCardModel(
-        id: '1', brand: 'Mastercard', last4Digits: '4321', expiry: '12/28'),
-    CreditCardModel(
-        id: '2', brand: 'Visa', last4Digits: '9876', expiry: '05/27'),
-  ];
+  final List<CreditCardModel> _cards = [];
+  final BaseApi _api = BaseApi();
 
   String _selectedCardId = '1';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCards();
+  }
+
+  Future<void> _loadCards() async {
+    try {
+      final response = await _api.get(Uri.parse('v2/passenger/payments/methods'));
+      if (response.statusCode != 200 || !mounted) return;
+      final payload = jsonDecode(response.body) as Map<String, dynamic>;
+      final methods = (payload['methods'] as List<dynamic>? ?? const [])
+          .whereType<Map<String, dynamic>>()
+          .where((item) => item['type'] == 'card')
+          .map((item) => CreditCardModel(
+                id: item['id'].toString(),
+                brand: item['brand']?.toString() ?? 'Cartão',
+                last4Digits: item['last4']?.toString() ?? '',
+                expiry: '',
+              ))
+          .where((item) => item.last4Digits.isNotEmpty)
+          .toList();
+      setState(() {
+        _cards
+          ..clear()
+          ..addAll(methods);
+        if (_cards.isNotEmpty) _selectedCardId = _cards.first.id;
+      });
+    } catch (_) {}
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -74,6 +102,8 @@ class _RegisteredCardsPageState extends State<RegisteredCardsPage> {
                     ),
                   ),
                   const SizedBox(height: 16),
+                  if (_cards.isEmpty)
+                    const Text('Nenhum cartão salvo no Asaas. Adicione um cartão antes de continuar.'),
                   ..._cards.map((card) {
                     final isSelected = _selectedCardId == card.id;
                     return Padding(
@@ -150,13 +180,29 @@ class _RegisteredCardsPageState extends State<RegisteredCardsPage> {
                   const SizedBox(height: 8),
                   InkWell(
                     borderRadius: BorderRadius.circular(16),
-                    onTap: () {
-                      // Navega para a tela de Adicionar Cartão
-                      Navigator.of(context).push(
+                    onTap: () async {
+                      final result = await Navigator.of(context).push<CardFormResult>(
                         MaterialPageRoute(
                           builder: (context) => const AddCardPage(),
                         ),
                       );
+                      if (result == null) return;
+                      final expiryParts = result.expiry.split('/');
+                      if (expiryParts.length != 2) return;
+                      final response = await _api.post(
+                        Uri.parse('v2/passenger/payments/methods/card-tokenize'),
+                        body: {
+                          'holderName': result.holderName,
+                          'number': result.cardNumberDigits,
+                          'expiryMonth': expiryParts[0].trim(),
+                          'expiryYear': expiryParts[1].trim().length == 2
+                              ? '20${expiryParts[1].trim()}'
+                              : expiryParts[1].trim(),
+                          'ccv': result.ccv,
+                          'setAsDefault': true,
+                        },
+                      );
+                      if (response.statusCode == 201) await _loadCards();
                     },
                     child: Ink(
                       padding: const EdgeInsets.all(16),
@@ -207,7 +253,9 @@ class _RegisteredCardsPageState extends State<RegisteredCardsPage> {
                 height: 56,
                 child: ElevatedButton(
                   onPressed: () {
-                    Navigator.of(context).pop('id_do_cartao_aqui');
+                    if (_selectedCardId.isNotEmpty && _cards.isNotEmpty) {
+                      Navigator.of(context).pop(_selectedCardId);
+                    }
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFFC92D7A),

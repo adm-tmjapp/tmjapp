@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -6,12 +7,14 @@ import 'package:tmjapp/app/router/app_router.dart';
 import 'package:tmjapp/features/ride_request/domain/entities/ride_request_args.dart';
 import 'package:tmjapp/features/ride_request/presentation/pages/ride_request_page.dart';
 import 'package:flutter/services.dart';
+import 'package:tmjapp/api/base_api.dart';
 
 class PixPaymentPage extends StatefulWidget {
   final double amount;
   final bool paymentValidated;
   final bool paymentFailed; // Nova variável para controlar a tela de erro
   final RideRequestArgs? rideArgs;
+  final String? rideId;
 
   const PixPaymentPage({
     super.key,
@@ -19,6 +22,7 @@ class PixPaymentPage extends StatefulWidget {
     this.paymentValidated = false,
     this.paymentFailed = false, // Por padrão, a tela de erro fica oculta
     this.rideArgs,
+    this.rideId,
   });
 
   @override
@@ -29,7 +33,12 @@ class _PixPaymentPageState extends State<PixPaymentPage> {
   static const _initialSeconds = 15 * 60; // 15 minutos
   late int _secondsLeft;
   Timer? _timer;
-  final _pixCode = '00020126580014br.gov.bcb.pix013636582...';
+  final _api = BaseApi();
+  String? _pixCode;
+  String? _encodedImage;
+  String? _paymentId;
+  String? _paymentStatus;
+  String? _errorMessage;
 
   String get _timerLabel {
     final minutes = (_secondsLeft ~/ 60).toString().padLeft(2, '0');
@@ -41,9 +50,11 @@ class _PixPaymentPageState extends State<PixPaymentPage> {
   void initState() {
     super.initState();
     _secondsLeft = _initialSeconds;
+    unawaited(_createPayment());
     // O timer só roda se não for a tela de erro
     if (!widget.paymentFailed) {
       _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+        if (timer.tick % 5 == 0) unawaited(_refreshPaymentStatus());
         if (_secondsLeft <= 0) {
           timer.cancel();
           return;
@@ -62,11 +73,54 @@ class _PixPaymentPageState extends State<PixPaymentPage> {
   }
 
   Future<void> _copyPixCode() async {
-    await Clipboard.setData(ClipboardData(text: _pixCode));
+    if ((_pixCode ?? '').isEmpty) return;
+    await Clipboard.setData(ClipboardData(text: _pixCode!));
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
           content: Text('Código PIX copiado para a área de transferência.')),
     );
+  }
+
+  Future<void> _createPayment() async {
+    final id = widget.rideId ?? widget.rideArgs?.existingRideId;
+    if (id == null || id.trim().isEmpty) {
+      if (mounted) setState(() => _errorMessage = 'Corrida não identificada.');
+      return;
+    }
+    try {
+      final response = await _api.post(
+        Uri.parse('v2/passenger/rides/$id/payments/pix'),
+        body: {'amount': widget.amount},
+      );
+      final payload = jsonDecode(response.body) as Map<String, dynamic>;
+      if (response.statusCode != 201) {
+        throw Exception(payload['message'] ?? 'Não foi possível gerar o PIX.');
+      }
+      final pix = payload['pix'] as Map<String, dynamic>? ?? const {};
+      if (mounted) {
+        setState(() {
+          _paymentId = payload['paymentId']?.toString();
+          _paymentStatus = payload['status']?.toString();
+          _pixCode = pix['payload']?.toString();
+          _encodedImage = pix['encodedImage']?.toString();
+          _errorMessage = null;
+        });
+      }
+    } catch (error) {
+      if (mounted) setState(() => _errorMessage = error.toString().replaceFirst('Exception: ', ''));
+    }
+  }
+
+  Future<void> _refreshPaymentStatus() async {
+    final rideId = widget.rideId ?? widget.rideArgs?.existingRideId;
+    if (rideId == null || _paymentId == null) return;
+    try {
+      final response = await _api.get(Uri.parse('v2/passenger/rides/$rideId/payments/status'));
+      if (response.statusCode == 200 && mounted) {
+        final payload = jsonDecode(response.body) as Map<String, dynamic>;
+        setState(() => _paymentStatus = payload['status']?.toString());
+      }
+    } catch (_) {}
   }
 
   // ==== MÉTODO PARA RENDERIZAR A TELA DE ERRO ====
@@ -379,13 +433,9 @@ class _PixPaymentPageState extends State<PixPaymentPage> {
                               border:
                                   Border.all(color: const Color(0xFFEFF3F8)),
                             ),
-                            child: const Center(
-                              child: Icon(
-                                Icons.qr_code_2_rounded,
-                                color: Color(0xFF94A3B8),
-                                size: 90,
-                              ),
-                            ),
+                              child: _encodedImage == null
+                                  ? const Center(child: Icon(Icons.qr_code_2_rounded, color: Color(0xFF94A3B8), size: 90))
+                                  : Image.memory(base64Decode(_encodedImage!), fit: BoxFit.contain),
                           ),
                           const SizedBox(height: 18),
                           Text(
@@ -421,7 +471,7 @@ class _PixPaymentPageState extends State<PixPaymentPage> {
                                 children: [
                                   Expanded(
                                     child: Text(
-                                      _pixCode,
+                                      _pixCode ?? 'Gerando código PIX...',
                                       style: GoogleFonts.plusJakartaSans(
                                         fontSize: 14,
                                         fontWeight: FontWeight.w600,
@@ -467,7 +517,7 @@ class _PixPaymentPageState extends State<PixPaymentPage> {
                     height: 56,
                     margin: const EdgeInsets.only(bottom: 8),
                     child: ElevatedButton(
-                      onPressed: null,
+                      onPressed: _paymentStatus == 'PAID' ? () => Navigator.of(context).pop(true) : null,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFFEFF2FF),
                         foregroundColor: const Color(0xFF667085),
@@ -488,7 +538,7 @@ class _PixPaymentPageState extends State<PixPaymentPage> {
                     width: double.infinity,
                     height: 56,
                     child: ElevatedButton(
-                      onPressed: widget.paymentValidated
+                      onPressed: _paymentStatus == 'PAID'
                           ? () {
                               // Se a tela já foi aberta como "validada",
                               // apenas fecha e devolve 'true' para o Mapa que está aguardando.
@@ -496,24 +546,10 @@ class _PixPaymentPageState extends State<PixPaymentPage> {
                             }
                           : () async {
                               // Se ainda não validou, abre a tela de processamento e ESPERA (await) o resultado dela
-                              final result =
-                                  await Navigator.of(context).pushNamed(
-                                AppRoutes.pixPaymentProcessing,
-                                arguments: {
-                                  'amount': widget.amount,
-                                  'rideArgs': widget
-                                      .rideArgs, // Ou widget.rideArgs dependendo de como está nomeado
-                                },
-                              );
-
-                              // Se a tela de processamento avisar que deu tudo certo (result == true),
-                              // nós fechamos a tela do PIX também repassando o 'true' para o Mapa!
-                              if (result == true && mounted) {
-                                Navigator.of(context).pop(true);
-                              }
+                              Navigator.of(context).pop(true);
                             },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: widget.paymentValidated
+                        backgroundColor: _paymentStatus == 'PAID'
                             ? const Color(0xFF16A34A)
                             : const Color(0xFFC92D7A),
                         foregroundColor: Colors.white,
