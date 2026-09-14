@@ -8,8 +8,10 @@ class ResolveSplashDestinationUseCase {
 
   Future<SplashDestination> call() async {
     final hasSavedSession = await _repository.hasSavedSession();
-    return hasSavedSession
-        ? SplashDestination.dashboard
+    if (hasSavedSession) return SplashDestination.dashboard;
+    final hasPendingPasswordReset = await _repository.hasPendingPasswordReset();
+    return hasPendingPasswordReset
+        ? SplashDestination.resetPassword
         : SplashDestination.signIn;
   }
 }

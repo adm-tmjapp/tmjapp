@@ -7,6 +7,7 @@ import 'package:tmjapp/features/auth/presentation/widgets/auth_input_field.dart'
 import 'package:tmjapp/features/forgot_password/presentation/controllers/forgot_password_controller.dart';
 import 'package:tmjapp/features/forgot_password/presentation/controllers/forgot_password_state.dart';
 import 'package:tmjapp/features/forgot_password/presentation/widgets/forgot_password_icon.dart';
+import 'package:tmjapp/features/forgot_password/data/password_reset_local_data_source.dart';
 
 class ForgotPasswordPage extends StatefulWidget {
   const ForgotPasswordPage({super.key});
@@ -20,6 +21,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   late final TextEditingController _emailController;
   String? _lastErrorMessage;
   bool _successShown = false;
+  final _localDataSource = PasswordResetLocalDataSource();
 
   @override
   void initState() {
@@ -40,6 +42,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   }
 
   void _onStateChanged() {
+    if (!mounted) return;
     final state = _controller.state;
 
     if (!state.didSend) {
@@ -65,16 +68,17 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
 
     if (state.didSend && !_successShown) {
       _successShown = true;
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Se o e-mail existir, as instruções de recuperação foram enviadas.',
-            ),
-          ),
-        );
+      _continuePasswordReset(state.email);
     }
+  }
+
+  Future<void> _continuePasswordReset(String email) async {
+    await _localDataSource.savePendingEmail(email);
+    if (!mounted) return;
+    Navigator.of(context).pushReplacementNamed(
+      AppRoutes.resetPassword,
+      arguments: email,
+    );
   }
 
   @override

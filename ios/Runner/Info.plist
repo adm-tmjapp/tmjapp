@@ -47,6 +47,10 @@
 	<true/>
 	<key>NSFaceIDUsageDescription</key>
 	<string>Use Face ID para autenticar seu acesso ao TMJApp.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Usamos a câmera para você adicionar uma foto ao seu perfil.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Usamos sua galeria para você escolher uma foto para o seu perfil.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Usamos sua localizacao para mostrar motoristas proximos e calcular suas corridas.</string>
 	<key>io.flutter.embedded_views_preview</key>

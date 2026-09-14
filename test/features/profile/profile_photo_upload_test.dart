@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -40,7 +41,38 @@ void main() {
       expect(
           captured.headers['content-type'], startsWith('multipart/form-data;'));
       expect(captured.bodyBytes, isNotEmpty);
+      expect(
+        latin1.decode(captured.bodyBytes),
+        contains('content-type: image/jpeg'),
+      );
       expect(photoUrl, 'https://api.tmj.test/uploads/profile.jpg');
+    } finally {
+      await directory.delete(recursive: true);
+    }
+  });
+
+  test('aceita a URL da foto dentro do envelope data', () async {
+    SharedPreferences.setMockInitialValues({});
+    final client = MockClient((request) async => http.Response(
+          '{"data":{"profile_photo":"/uploads/nested.jpg"}}',
+          200,
+        ));
+    final dataSource = ProfileRemoteDataSource(
+      baseApi: BaseApi(
+        baseUrl: 'https://api.tmj.test/api/',
+        apiAuthToken: 'token-test',
+        client: client,
+      ),
+    );
+    final directory = await Directory.systemTemp.createTemp('tmj-profile-');
+    final image = File('${directory.path}/profile.jpg');
+    await image.writeAsBytes([0xFF, 0xD8, 0xFF, 0xD9]);
+
+    try {
+      expect(
+        await dataSource.updateProfilePhoto(image),
+        'https://api.tmj.test/uploads/nested.jpg',
+      );
     } finally {
       await directory.delete(recursive: true);
     }

@@ -51,6 +51,7 @@ class _SplashPageState extends State<SplashPage> {
     final routeName = switch (destination) {
       SplashDestination.dashboard => AppRoutes.dashboard,
       SplashDestination.signIn => AppRoutes.signIn,
+      SplashDestination.resetPassword => AppRoutes.resetPassword,
     };
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -102,7 +103,9 @@ class _SplashPageBody extends StatelessWidget {
         TmjSplashProgress(progress: state.progress),
         const SizedBox(height: 20),
         Text(
-          state.isLoading ? 'Preparando sua experiência...' : 'Redirecionando...',
+          state.isLoading
+              ? 'Preparando sua experiência...'
+              : 'Redirecionando...',
           textAlign: TextAlign.center,
           style: GoogleFonts.plusJakartaSans(
             color: const Color(0xFF9CA3AF),

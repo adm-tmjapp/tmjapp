@@ -49,36 +49,45 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
 
   // 👇 LÓGICA CENTRALIZADA AQUI
   Future<void> _handleChangePhoto() async {
-    // 1. Vai até a tela de escolher a opção e espera a resposta ('camera' ou 'gallery')
-    final String? sourceString =
-        await Navigator.of(context).pushNamed(AppRoutes.changePhoto) as String?;
-    if (sourceString == null) return;
+    try {
+      final sourceString = await Navigator.of(context)
+          .pushNamed(AppRoutes.changePhoto) as String?;
+      if (sourceString == null || !mounted) return;
 
-    // 2. Transforma a string no ImageSource do ImagePicker
-    final source =
-        sourceString == 'camera' ? ImageSource.camera : ImageSource.gallery;
-
-    // 3. Abre a câmera ou galeria
-    final picker = ImagePicker();
-    final XFile? pickedFile =
-        await picker.pickImage(source: source, imageQuality: 70);
-    if (pickedFile == null) return;
-
-    // 4. Pega o Controller que JÁ EXISTE nesta tela e faz o upload
-    if (!mounted) return;
-    final controller = context.read<ProfileController>();
-    await controller.updatePhoto(File(pickedFile.path));
-
-    // 5. Exibe os resultados
-    if (!mounted) return;
-    if (controller.state.errorMessage != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(controller.state.errorMessage!)),
+      final source =
+          sourceString == 'camera' ? ImageSource.camera : ImageSource.gallery;
+      final pickedFile = await ImagePicker().pickImage(
+        source: source,
+        imageQuality: 75,
+        maxWidth: 1600,
+        maxHeight: 1600,
       );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Foto atualizada com sucesso!')),
-      );
+      if (pickedFile == null || !mounted) return;
+
+      final controller = context.read<ProfileController>();
+      await controller.updatePhoto(File(pickedFile.path));
+      if (!mounted) return;
+
+      final message = controller.state.errorMessage;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: Text(
+              message ?? 'Foto atualizada com sucesso.',
+            ),
+          ),
+        );
+    } catch (error) {
+      if (!mounted) return;
+      final message = error.toString().replaceFirst('Exception: ', '');
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: Text('Não foi possível selecionar a foto: $message'),
+          ),
+        );
     }
   }
 

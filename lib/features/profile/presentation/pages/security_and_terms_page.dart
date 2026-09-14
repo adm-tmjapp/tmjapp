@@ -3,7 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:tmjapp/core/di/auth_module.dart';
 import 'package:tmjapp/features/profile/presentation/pages/active_sessions_page.dart';
 import 'package:tmjapp/features/profile/presentation/pages/change_password_page.dart';
-import 'package:tmjapp/features/profile/presentation/pages/legal_document_page.dart';
+import 'package:tmjapp/app/router/app_router.dart';
 
 // Cores baseadas na sua paleta do ProfilePage
 const Color _primaryPink = Color(0xFFC92D7A);
@@ -151,23 +151,15 @@ class _SecurityAndTermsPageState extends State<SecurityAndTermsPage> {
                   _MenuTile(
                     label: 'Termos de Uso',
                     icon: Icons.description_outlined,
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const LegalDocumentPage(
-                            document: LegalDocument.terms),
-                      ),
-                    ),
+                    onTap: () => Navigator.of(context)
+                        .pushNamed(AppRoutes.termsOfService),
                   ),
                   const _CustomDivider(),
                   _MenuTile(
                     label: 'Política de Privacidade',
                     icon: Icons.privacy_tip_outlined,
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const LegalDocumentPage(
-                            document: LegalDocument.privacy),
-                      ),
-                    ),
+                    onTap: () => Navigator.of(context)
+                        .pushNamed(AppRoutes.privacyPolicy),
                   ),
                   const _CustomDivider(),
                   _MenuTile(

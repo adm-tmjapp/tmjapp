@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:tmjapp/features/auth/presentation/pages/sign_in_page.dart';
 import 'package:tmjapp/features/forgot_password/presentation/pages/forgot_password_page.dart';
+import 'package:tmjapp/features/forgot_password/presentation/pages/reset_password_page.dart';
 import 'package:tmjapp/features/home/presentation/pages/dashboard_page.dart';
 import 'package:tmjapp/features/onboarding/presentation/pages/onboarding_page.dart';
 import 'package:tmjapp/features/payments/presentation/pages/payments_page.dart';
@@ -21,6 +22,7 @@ import 'package:tmjapp/features/profile/presentation/pages/saved_addresses_page.
 import 'package:tmjapp/features/ride_request/domain/entities/ride_request_args.dart';
 import 'package:tmjapp/features/profile/presentation/pages/security_and_terms_page.dart';
 import 'package:tmjapp/features/profile/presentation/pages/promotions_coupons_page.dart';
+import 'package:tmjapp/features/profile/presentation/pages/legal_document_page.dart';
 import 'package:tmjapp/features/chat/button_chat.dart';
 
 class AppRoutes {
@@ -29,6 +31,7 @@ class AppRoutes {
   static const signIn = '/auth/sign-in';
   static const signUp = '/auth/sign-up';
   static const forgotPassword = '/auth/forgot-password';
+  static const resetPassword = '/auth/reset-password';
   static const dashboard = '/home/dashboard';
   static const payments = '/payments';
   static const profile = '/profile';
@@ -45,6 +48,8 @@ class AppRoutes {
   static const securityAndTerms = '/security-and-terms';
   static const promotionsAndCoupons = '/promotions-coupons';
   static const chat = '/chat';
+  static const termsOfService = '/legal/terms-of-service';
+  static const privacyPolicy = '/legal/privacy-policy';
 }
 
 class AppRouter {
@@ -73,6 +78,27 @@ class AppRouter {
       case AppRoutes.forgotPassword:
         return MaterialPageRoute(
           builder: (_) => const ForgotPasswordPage(),
+          settings: settings,
+        );
+      case AppRoutes.termsOfService:
+        return MaterialPageRoute(
+          builder: (_) => const LegalDocumentPage(
+            document: LegalDocument.terms,
+          ),
+          settings: settings,
+        );
+      case AppRoutes.privacyPolicy:
+        return MaterialPageRoute(
+          builder: (_) => const LegalDocumentPage(
+            document: LegalDocument.privacy,
+          ),
+          settings: settings,
+        );
+      case AppRoutes.resetPassword:
+        return MaterialPageRoute(
+          builder: (_) => ResetPasswordPage(
+            email: settings.arguments as String?,
+          ),
           settings: settings,
         );
       case AppRoutes.dashboard:

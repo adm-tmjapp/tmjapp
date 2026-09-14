@@ -131,6 +131,10 @@ class _SignUpPageState extends State<SignUpPage> {
               onPasswordChanged: _controller.updatePassword,
               onConfirmPasswordChanged: _controller.updateConfirmPassword,
               onAcceptedTermsChanged: _controller.toggleAcceptedTerms,
+              onTermsPressed: () =>
+                  Navigator.of(context).pushNamed(AppRoutes.termsOfService),
+              onPrivacyPressed: () =>
+                  Navigator.of(context).pushNamed(AppRoutes.privacyPolicy),
               onSignUp: _submitSignUp,
               onGoToSignIn: () => _goToSignIn(context),
             );
@@ -166,6 +170,8 @@ class _SignUpContent extends StatefulWidget {
     required this.onPasswordChanged,
     required this.onConfirmPasswordChanged,
     required this.onAcceptedTermsChanged,
+    required this.onTermsPressed,
+    required this.onPrivacyPressed,
     required this.onSignUp,
     required this.onGoToSignIn,
   });
@@ -184,6 +190,8 @@ class _SignUpContent extends StatefulWidget {
   final ValueChanged<String> onPasswordChanged;
   final ValueChanged<String> onConfirmPasswordChanged;
   final ValueChanged<bool> onAcceptedTermsChanged;
+  final VoidCallback onTermsPressed;
+  final VoidCallback onPrivacyPressed;
   final VoidCallback onSignUp;
   final VoidCallback onGoToSignIn;
 
@@ -213,7 +221,7 @@ class _SignUpContentState extends State<_SignUpContent> {
               ),
               const SizedBox(width: 10),
               Text(
-                'Criar Conta',
+                'Criar conta',
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 18,
                   fontWeight: FontWeight.w800,
@@ -246,7 +254,7 @@ class _SignUpContentState extends State<_SignUpContent> {
             ),
           ),
           const SizedBox(height: 28),
-          const _FieldLabel('Nome Completo'),
+          const _FieldLabel('Nome completo'),
           const SizedBox(height: 10),
           AuthInputField(
             controller: widget.fullNameController,
@@ -265,7 +273,7 @@ class _SignUpContentState extends State<_SignUpContent> {
             onChanged: widget.onEmailChanged,
           ),
           const SizedBox(height: 18),
-          const _FieldLabel('Numero de Telefone'),
+          const _FieldLabel('Número de telefone'),
           const SizedBox(height: 10),
           TextField(
             controller: widget.phoneController,
@@ -309,7 +317,7 @@ class _SignUpContentState extends State<_SignUpContent> {
             ),
           ),
           const SizedBox(height: 18),
-          const _FieldLabel('Confirmar Senha'),
+          const _FieldLabel('Confirmar senha'),
           const SizedBox(height: 10),
           TextField(
             controller: widget.confirmPasswordController,
@@ -340,6 +348,8 @@ class _SignUpContentState extends State<_SignUpContent> {
           SignUpTermsCheckbox(
             value: widget.state.acceptedTerms,
             onChanged: widget.onAcceptedTermsChanged,
+            onTermsPressed: widget.onTermsPressed,
+            onPrivacyPressed: widget.onPrivacyPressed,
           ),
           const SizedBox(height: 28),
           SizedBox(
@@ -395,7 +405,7 @@ class _SignUpContentState extends State<_SignUpContent> {
           Center(
             child: Text.rich(
               TextSpan(
-                text: 'Ja tem uma conta? ',
+                text: 'Já tem uma conta? ',
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 14,
                   color: const Color(0xFF667085),

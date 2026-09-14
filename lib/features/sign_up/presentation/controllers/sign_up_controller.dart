@@ -76,10 +76,10 @@ class SignUpController extends ChangeNotifier with DisposableChangeNotifier {
       return 'Informe seu e-mail.';
     }
     if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(_state.email.trim())) {
-      return 'Informe um e-mail valido.';
+      return 'Informe um e-mail válido.';
     }
     if (_normalizedPhone.length < 10) {
-      return 'Informe um telefone valido.';
+      return 'Informe um telefone válido.';
     }
     if (_state.password.length < 6) {
       return 'Crie uma senha com pelo menos 6 caracteres.';
@@ -88,7 +88,7 @@ class SignUpController extends ChangeNotifier with DisposableChangeNotifier {
       return 'As senhas não conferem.';
     }
     if (!_state.acceptedTerms) {
-      return 'Voce precisa aceitar os termos para continuar.';
+      return 'Você precisa aceitar os termos para continuar.';
     }
 
     return null;
