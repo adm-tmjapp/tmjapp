@@ -3,9 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:tmjapp/app/router/app_router.dart';
 import 'package:tmjapp/features/ride_request/domain/entities/ride_request_args.dart';
-import 'package:tmjapp/features/ride_request/presentation/pages/ride_request_page.dart';
 import 'package:flutter/services.dart';
 import 'package:tmjapp/api/base_api.dart';
 
@@ -30,7 +28,7 @@ class PixPaymentPage extends StatefulWidget {
 }
 
 class _PixPaymentPageState extends State<PixPaymentPage> {
-  static const _initialSeconds = 15 * 60; // 15 minutos
+  static const _initialSeconds = 5 * 60;
   late int _secondsLeft;
   Timer? _timer;
   final _api = BaseApi();
@@ -38,7 +36,13 @@ class _PixPaymentPageState extends State<PixPaymentPage> {
   String? _encodedImage;
   String? _paymentId;
   String? _paymentStatus;
+  DateTime? _paymentExpiresAt;
   String? _errorMessage;
+
+  bool get _paymentClosed {
+    final status = (_paymentStatus ?? '').toUpperCase();
+    return status == 'CANCELED' || status == 'FAILED' || _secondsLeft <= 0;
+  }
 
   String get _timerLabel {
     final minutes = (_secondsLeft ~/ 60).toString().padLeft(2, '0');
@@ -57,6 +61,7 @@ class _PixPaymentPageState extends State<PixPaymentPage> {
         if (timer.tick % 5 == 0) unawaited(_refreshPaymentStatus());
         if (_secondsLeft <= 0) {
           timer.cancel();
+          unawaited(_expirePayment());
           return;
         }
         setState(() {
@@ -101,13 +106,24 @@ class _PixPaymentPageState extends State<PixPaymentPage> {
         setState(() {
           _paymentId = payload['paymentId']?.toString();
           _paymentStatus = payload['status']?.toString();
+          final expiresAt = payload['paymentExpiresAt']?.toString();
+          _paymentExpiresAt =
+              expiresAt == null ? null : DateTime.tryParse(expiresAt);
+          if (_paymentExpiresAt != null) {
+            _secondsLeft = _paymentExpiresAt!
+                .difference(DateTime.now())
+                .inSeconds
+                .clamp(0, 60 * 60);
+          }
           _pixCode = pix['payload']?.toString();
           _encodedImage = pix['encodedImage']?.toString();
           _errorMessage = null;
         });
       }
     } catch (error) {
-      if (mounted) setState(() => _errorMessage = error.toString().replaceFirst('Exception: ', ''));
+      if (mounted)
+        setState(() =>
+            _errorMessage = error.toString().replaceFirst('Exception: ', ''));
     }
   }
 
@@ -115,12 +131,37 @@ class _PixPaymentPageState extends State<PixPaymentPage> {
     final rideId = widget.rideId ?? widget.rideArgs?.existingRideId;
     if (rideId == null || _paymentId == null) return;
     try {
-      final response = await _api.get(Uri.parse('v2/passenger/rides/$rideId/payments/status'));
+      final response = await _api
+          .get(Uri.parse('v2/passenger/rides/$rideId/payments/status'));
       if (response.statusCode == 200 && mounted) {
         final payload = jsonDecode(response.body) as Map<String, dynamic>;
-        setState(() => _paymentStatus = payload['status']?.toString());
+        setState(() {
+          _paymentStatus = payload['status']?.toString();
+          final expiresAt = payload['paymentExpiresAt']?.toString();
+          if (expiresAt != null) {
+            _paymentExpiresAt = DateTime.tryParse(expiresAt);
+            if (_paymentExpiresAt != null) {
+              _secondsLeft = _paymentExpiresAt!
+                  .difference(DateTime.now())
+                  .inSeconds
+                  .clamp(0, 60 * 60);
+            }
+          }
+        });
       }
     } catch (_) {}
+  }
+
+  Future<void> _expirePayment() async {
+    final rideId = widget.rideId ?? widget.rideArgs?.existingRideId;
+    if (rideId == null || rideId.trim().isEmpty) return;
+
+    try {
+      await _api.post(Uri.parse('v2/passenger/rides/$rideId/payments/cancel'));
+    } catch (_) {
+      // O job do backend continua sendo a fonte de verdade para a expiração.
+    }
+    await _refreshPaymentStatus();
   }
 
   // ==== MÉTODO PARA RENDERIZAR A TELA DE ERRO ====
@@ -252,6 +293,7 @@ class _PixPaymentPageState extends State<PixPaymentPage> {
                             builder: (_) => PixPaymentPage(
                               amount: widget.amount,
                               rideArgs: widget.rideArgs,
+                              rideId: widget.rideId,
                             ),
                           ),
                         );
@@ -343,7 +385,7 @@ class _PixPaymentPageState extends State<PixPaymentPage> {
 
   @override
   Widget build(BuildContext context) {
-    if (widget.paymentFailed) {
+    if (widget.paymentFailed || _paymentClosed) {
       return _buildErrorScreen(context);
     }
 
@@ -433,9 +475,12 @@ class _PixPaymentPageState extends State<PixPaymentPage> {
                               border:
                                   Border.all(color: const Color(0xFFEFF3F8)),
                             ),
-                              child: _encodedImage == null
-                                  ? const Center(child: Icon(Icons.qr_code_2_rounded, color: Color(0xFF94A3B8), size: 90))
-                                  : Image.memory(base64Decode(_encodedImage!), fit: BoxFit.contain),
+                            child: _encodedImage == null
+                                ? const Center(
+                                    child: Icon(Icons.qr_code_2_rounded,
+                                        color: Color(0xFF94A3B8), size: 90))
+                                : Image.memory(base64Decode(_encodedImage!),
+                                    fit: BoxFit.contain),
                           ),
                           const SizedBox(height: 18),
                           Text(
@@ -517,7 +562,9 @@ class _PixPaymentPageState extends State<PixPaymentPage> {
                     height: 56,
                     margin: const EdgeInsets.only(bottom: 8),
                     child: ElevatedButton(
-                      onPressed: _paymentStatus == 'PAID' ? () => Navigator.of(context).pop(true) : null,
+                      onPressed: _paymentStatus == 'PAID'
+                          ? () => Navigator.of(context).pop(true)
+                          : null,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFFEFF2FF),
                         foregroundColor: const Color(0xFF667085),
@@ -539,15 +586,8 @@ class _PixPaymentPageState extends State<PixPaymentPage> {
                     height: 56,
                     child: ElevatedButton(
                       onPressed: _paymentStatus == 'PAID'
-                          ? () {
-                              // Se a tela já foi aberta como "validada",
-                              // apenas fecha e devolve 'true' para o Mapa que está aguardando.
-                              Navigator.of(context).pop(true);
-                            }
-                          : () async {
-                              // Se ainda não validou, abre a tela de processamento e ESPERA (await) o resultado dela
-                              Navigator.of(context).pop(true);
-                            },
+                          ? () => Navigator.of(context).pop(true)
+                          : null,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: _paymentStatus == 'PAID'
                             ? const Color(0xFF16A34A)
@@ -557,9 +597,9 @@ class _PixPaymentPageState extends State<PixPaymentPage> {
                             borderRadius: BorderRadius.circular(14)),
                       ),
                       child: Text(
-                        widget.paymentValidated
+                        _paymentStatus == 'PAID'
                             ? 'Pagamento confirmado / Solicitar Corrida'
-                            : 'Já paguei / Continuar',
+                            : 'Aguardando confirmação do PIX',
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 16,
                           fontWeight: FontWeight.w800,
