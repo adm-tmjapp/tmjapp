@@ -85,13 +85,21 @@ class Authapi {
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
         final responseBody = _parseJsonObject(response);
+        final nestedData = responseBody?["data"];
+        final data = nestedData is Map<String, dynamic> ? nestedData : null;
         final emailSent = responseBody?["emailSent"] ??
             responseBody?["email_sent"] ??
-            responseBody?["sent"];
+            responseBody?["sent"] ??
+            data?["emailSent"] ??
+            data?["email_sent"] ??
+            data?["sent"];
 
         if (emailSent == false) {
           throw Exception(
             _parseMessage(response) ??
+                (data?["message"]?.toString().trim().isNotEmpty == true
+                    ? data!["message"].toString()
+                    : null) ??
                 'O servidor não confirmou o envio do e-mail.',
           );
         }

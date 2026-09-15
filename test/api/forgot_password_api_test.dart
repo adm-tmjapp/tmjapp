@@ -57,6 +57,27 @@ void main() {
     expect(response.exceptionMessage, contains('servidor de e-mail'));
   });
 
+  test('does not report success when nested API data says email was not sent',
+      () async {
+    final api = createApi((request) async {
+      return http.Response(
+        jsonEncode({
+          'data': {
+            'emailSent': false,
+            'message': 'Fila de e-mail indisponível',
+          },
+        }),
+        200,
+        headers: {'content-type': 'application/json'},
+      );
+    });
+
+    final response = await api.forgotPassword('user@example.com');
+
+    expect(response.hasException, isTrue);
+    expect(response.exceptionMessage, contains('Fila de e-mail indisponível'));
+  });
+
   test('preserves the API error message when delivery fails', () async {
     final api = createApi((request) async {
       return http.Response(
