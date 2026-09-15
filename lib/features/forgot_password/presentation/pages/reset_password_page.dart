@@ -195,6 +195,9 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                 ),
                 TextButton(
                   onPressed: _loading ? null : _resendCode,
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.black,
+                  ),
                   child: const Text('Reenviar código'),
                 ),
               ],
