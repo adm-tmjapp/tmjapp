@@ -56,7 +56,10 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
     setState(() => _loading = true);
     try {
       final code = _codeController.text.trim();
-      await _repository.verifyPasswordResetCode(email: _email!, code: code);
+      // O endpoint de redefinição já valida o código no servidor. Fazer uma
+      // chamada de verificação separada pode invalidar o fluxo quando o
+      // código é consumido/atualizado entre as duas requisições. O App Drive
+      // usa o mesmo fluxo direto e funciona corretamente.
       await _repository.resetPassword(
         email: _email!,
         code: code,
