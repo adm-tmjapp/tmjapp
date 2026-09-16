@@ -92,6 +92,15 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
     }
   }
 
+  Future<void> _backToLogin() async {
+    await _localDataSource.clear();
+    if (!mounted) return;
+    Navigator.of(context).pushNamedAndRemoveUntil(
+      AppRoutes.signIn,
+      (route) => false,
+    );
+  }
+
   @override
   void dispose() {
     _codeController.dispose();
@@ -109,6 +118,11 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
       child: Scaffold(
         backgroundColor: const Color(0xFFF8F6F6),
         appBar: AppBar(
+          leading: IconButton(
+            tooltip: 'Voltar para o login',
+            onPressed: _loading ? null : _backToLogin,
+            icon: const Icon(Icons.arrow_back_ios_new_rounded),
+          ),
           title: const Text('Redefinir senha'),
           backgroundColor: const Color(0xFFF8F6F6),
         ),

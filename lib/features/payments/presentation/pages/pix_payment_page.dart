@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:tmjapp/features/payments/domain/pix_payment_data.dart';
 import 'package:tmjapp/features/ride_request/domain/entities/ride_request_args.dart';
 import 'package:flutter/services.dart';
 import 'package:tmjapp/api/base_api.dart';
@@ -27,7 +28,8 @@ class PixPaymentPage extends StatefulWidget {
   State<PixPaymentPage> createState() => _PixPaymentPageState();
 }
 
-class _PixPaymentPageState extends State<PixPaymentPage> {
+class _PixPaymentPageState extends State<PixPaymentPage>
+    with WidgetsBindingObserver {
   static const _initialSeconds = 5 * 60;
   late int _secondsLeft;
   Timer? _timer;
@@ -38,10 +40,14 @@ class _PixPaymentPageState extends State<PixPaymentPage> {
   String? _paymentStatus;
   DateTime? _paymentExpiresAt;
   String? _errorMessage;
+  bool _isCreating = true;
+  bool _isRefreshing = false;
+  bool _didComplete = false;
+
+  bool get _isPaid => isPixPaidStatus(_paymentStatus);
 
   bool get _paymentClosed {
-    final status = (_paymentStatus ?? '').toUpperCase();
-    return status == 'CANCELED' || status == 'FAILED' || _secondsLeft <= 0;
+    return isPixClosedStatus(_paymentStatus) || _secondsLeft <= 0;
   }
 
   String get _timerLabel {
@@ -53,12 +59,13 @@ class _PixPaymentPageState extends State<PixPaymentPage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _secondsLeft = _initialSeconds;
     unawaited(_createPayment());
     // O timer só roda se não for a tela de erro
     if (!widget.paymentFailed) {
       _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-        if (timer.tick % 5 == 0) unawaited(_refreshPaymentStatus());
+        if (timer.tick % 3 == 0) unawaited(_refreshPaymentStatus());
         if (_secondsLeft <= 0) {
           timer.cancel();
           unawaited(_expirePayment());
@@ -73,13 +80,22 @@ class _PixPaymentPageState extends State<PixPaymentPage> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _timer?.cancel();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      unawaited(_refreshPaymentStatus());
+    }
   }
 
   Future<void> _copyPixCode() async {
     if ((_pixCode ?? '').isEmpty) return;
     await Clipboard.setData(ClipboardData(text: _pixCode!));
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
           content: Text('Código PIX copiado para a área de transferência.')),
@@ -89,7 +105,12 @@ class _PixPaymentPageState extends State<PixPaymentPage> {
   Future<void> _createPayment() async {
     final id = widget.rideId ?? widget.rideArgs?.existingRideId;
     if (id == null || id.trim().isEmpty) {
-      if (mounted) setState(() => _errorMessage = 'Corrida não identificada.');
+      if (mounted) {
+        setState(() {
+          _isCreating = false;
+          _errorMessage = 'Corrida não identificada.';
+        });
+      }
       return;
     }
     try {
@@ -97,49 +118,68 @@ class _PixPaymentPageState extends State<PixPaymentPage> {
         Uri.parse('v2/passenger/rides/$id/payments/pix'),
         body: {'amount': widget.amount},
       );
-      final payload = jsonDecode(response.body) as Map<String, dynamic>;
-      if (response.statusCode != 201) {
-        throw Exception(payload['message'] ?? 'Não foi possível gerar o PIX.');
+      final decoded = jsonDecode(response.body);
+      final payload = decoded is Map
+          ? Map<String, dynamic>.from(decoded)
+          : <String, dynamic>{};
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw Exception(
+          payload['message'] ??
+              payload['error'] ??
+              'Não foi possível gerar o PIX.',
+        );
       }
-      final pix = payload['pix'] as Map<String, dynamic>? ?? const {};
+      final payment = PixPaymentData.fromJson(payload);
+      if ((payment.copyPasteCode ?? '').isEmpty) {
+        throw Exception('O banco não retornou o código PIX. Tente novamente.');
+      }
       if (mounted) {
         setState(() {
-          _paymentId = payload['paymentId']?.toString();
-          _paymentStatus = payload['status']?.toString();
-          final expiresAt = payload['paymentExpiresAt']?.toString();
-          _paymentExpiresAt =
-              expiresAt == null ? null : DateTime.tryParse(expiresAt);
+          _paymentId = payment.paymentId;
+          _paymentStatus = payment.status;
+          _paymentExpiresAt = payment.expiresAt;
           if (_paymentExpiresAt != null) {
             _secondsLeft = _paymentExpiresAt!
                 .difference(DateTime.now())
                 .inSeconds
                 .clamp(0, 60 * 60);
           }
-          _pixCode = pix['payload']?.toString();
-          _encodedImage = pix['encodedImage']?.toString();
+          _pixCode = payment.copyPasteCode;
+          _encodedImage = normalizedPixBase64(payment.encodedImage);
+          _isCreating = false;
           _errorMessage = null;
         });
       }
+      if (payment.isPaid) _completePayment();
+      unawaited(_refreshPaymentStatus());
     } catch (error) {
-      if (mounted)
-        setState(() =>
-            _errorMessage = error.toString().replaceFirst('Exception: ', ''));
+      if (mounted) {
+        setState(() {
+          _isCreating = false;
+          _errorMessage = error.toString().replaceFirst('Exception: ', '');
+        });
+      }
     }
   }
 
-  Future<void> _refreshPaymentStatus() async {
+  Future<void> _refreshPaymentStatus({bool showFeedback = false}) async {
     final rideId = widget.rideId ?? widget.rideArgs?.existingRideId;
-    if (rideId == null || _paymentId == null) return;
+    if (rideId == null || _pixCode == null || _isRefreshing) return;
+    if (mounted) setState(() => _isRefreshing = true);
     try {
       final response = await _api
           .get(Uri.parse('v2/passenger/rides/$rideId/payments/status'));
       if (response.statusCode == 200 && mounted) {
-        final payload = jsonDecode(response.body) as Map<String, dynamic>;
+        final decoded = jsonDecode(response.body);
+        final payload = decoded is Map
+            ? Map<String, dynamic>.from(decoded)
+            : <String, dynamic>{};
+        final payment = PixPaymentData.fromJson(payload);
         setState(() {
-          _paymentStatus = payload['status']?.toString();
-          final expiresAt = payload['paymentExpiresAt']?.toString();
-          if (expiresAt != null) {
-            _paymentExpiresAt = DateTime.tryParse(expiresAt);
+          _paymentId = payment.paymentId ?? _paymentId;
+          _paymentStatus = payment.status ?? _paymentStatus;
+          if (payment.expiresAt != null) {
+            _paymentExpiresAt = payment.expiresAt;
             if (_paymentExpiresAt != null) {
               _secondsLeft = _paymentExpiresAt!
                   .difference(DateTime.now())
@@ -148,8 +188,65 @@ class _PixPaymentPageState extends State<PixPaymentPage> {
             }
           }
         });
+        if (payment.isPaid) _completePayment();
+        if (showFeedback && !payment.isPaid && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Pagamento ainda não identificado.'),
+            ),
+          );
+        }
       }
-    } catch (_) {}
+    } catch (_) {
+      if (showFeedback && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Não foi possível verificar o PIX.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isRefreshing = false);
+    }
+  }
+
+  void _completePayment() {
+    if (!mounted || _didComplete) return;
+    _didComplete = true;
+    _timer?.cancel();
+    Navigator.of(context).pop(true);
+  }
+
+  void _retryCreatePayment() {
+    setState(() {
+      _isCreating = true;
+      _errorMessage = null;
+    });
+    unawaited(_createPayment());
+  }
+
+  Widget _buildQrCode() {
+    final image = normalizedPixBase64(_encodedImage);
+    if (image == null) {
+      return Center(
+        child: _isCreating
+            ? const CircularProgressIndicator(color: Color(0xFFC92D7A))
+            : const Icon(
+                Icons.qr_code_2_rounded,
+                color: Color(0xFF94A3B8),
+                size: 90,
+              ),
+      );
+    }
+    try {
+      return Image.memory(base64Decode(image), fit: BoxFit.contain);
+    } catch (_) {
+      return const Center(
+        child: Icon(
+          Icons.broken_image_outlined,
+          color: Color(0xFF94A3B8),
+          size: 64,
+        ),
+      );
+    }
   }
 
   Future<void> _expirePayment() async {
@@ -217,7 +314,7 @@ class _PixPaymentPageState extends State<PixPaymentPage> {
                           shape: BoxShape.circle,
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.05),
+                              color: Colors.black.withValues(alpha: 0.05),
                               blurRadius: 8,
                               offset: const Offset(0, 4),
                             ),
@@ -456,7 +553,7 @@ class _PixPaymentPageState extends State<PixPaymentPage> {
                       borderRadius: BorderRadius.circular(16),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.08),
+                          color: Colors.black.withValues(alpha: 0.08),
                           blurRadius: 14,
                           offset: const Offset(0, 6),
                         ),
@@ -475,12 +572,7 @@ class _PixPaymentPageState extends State<PixPaymentPage> {
                               border:
                                   Border.all(color: const Color(0xFFEFF3F8)),
                             ),
-                            child: _encodedImage == null
-                                ? const Center(
-                                    child: Icon(Icons.qr_code_2_rounded,
-                                        color: Color(0xFF94A3B8), size: 90))
-                                : Image.memory(base64Decode(_encodedImage!),
-                                    fit: BoxFit.contain),
+                            child: _buildQrCode(),
                           ),
                           const SizedBox(height: 18),
                           Text(
@@ -501,7 +593,7 @@ class _PixPaymentPageState extends State<PixPaymentPage> {
                           ),
                           const SizedBox(height: 16),
                           GestureDetector(
-                            onTap: _copyPixCode,
+                            onTap: _pixCode == null ? null : _copyPixCode,
                             child: Container(
                               width: double.infinity,
                               padding: const EdgeInsets.symmetric(
@@ -533,13 +625,54 @@ class _PixPaymentPageState extends State<PixPaymentPage> {
                                       color: const Color(0xFFC92D7A),
                                       borderRadius: BorderRadius.circular(10),
                                     ),
-                                    child: const Icon(Icons.copy,
-                                        color: Colors.white, size: 20),
+                                    child: _isCreating
+                                        ? const Padding(
+                                            padding: EdgeInsets.all(10),
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              color: Colors.white,
+                                            ),
+                                          )
+                                        : const Icon(
+                                            Icons.copy,
+                                            color: Colors.white,
+                                            size: 20,
+                                          ),
                                   ),
                                 ],
                               ),
                             ),
                           ),
+                          if (_errorMessage != null) ...[
+                            const SizedBox(height: 14),
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFEF2F2),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Column(
+                                children: [
+                                  Text(
+                                    _errorMessage!,
+                                    textAlign: TextAlign.center,
+                                    style: GoogleFonts.plusJakartaSans(
+                                      color: const Color(0xFFB91C1C),
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  TextButton.icon(
+                                    onPressed: _isCreating
+                                        ? null
+                                        : _retryCreatePayment,
+                                    icon: const Icon(Icons.refresh_rounded),
+                                    label: const Text('Tentar gerar novamente'),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ),
@@ -562,9 +695,7 @@ class _PixPaymentPageState extends State<PixPaymentPage> {
                     height: 56,
                     margin: const EdgeInsets.only(bottom: 8),
                     child: ElevatedButton(
-                      onPressed: _paymentStatus == 'PAID'
-                          ? () => Navigator.of(context).pop(true)
-                          : null,
+                      onPressed: null,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFFEFF2FF),
                         foregroundColor: const Color(0xFF667085),
@@ -572,7 +703,11 @@ class _PixPaymentPageState extends State<PixPaymentPage> {
                             borderRadius: BorderRadius.circular(14)),
                       ),
                       child: Text(
-                        'Aguardando Pagamento...',
+                        _isPaid
+                            ? 'Pagamento identificado'
+                            : _isCreating
+                                ? 'Gerando cobrança PIX...'
+                                : 'Aguardando pagamento...',
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 16,
                           fontWeight: FontWeight.w800,
@@ -585,26 +720,35 @@ class _PixPaymentPageState extends State<PixPaymentPage> {
                     width: double.infinity,
                     height: 56,
                     child: ElevatedButton(
-                      onPressed: _paymentStatus == 'PAID'
-                          ? () => Navigator.of(context).pop(true)
-                          : null,
+                      onPressed: _pixCode == null || _isRefreshing
+                          ? null
+                          : () => _refreshPaymentStatus(showFeedback: true),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: _paymentStatus == 'PAID'
+                        backgroundColor: _isPaid
                             ? const Color(0xFF16A34A)
                             : const Color(0xFFC92D7A),
                         foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(14)),
                       ),
-                      child: Text(
-                        _paymentStatus == 'PAID'
-                            ? 'Pagamento confirmado / Solicitar Corrida'
-                            : 'Aguardando confirmação do PIX',
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
+                      child: _isRefreshing
+                          ? const SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : Text(
+                              _isPaid
+                                  ? 'Pagamento confirmado'
+                                  : 'Já paguei · Verificar agora',
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
                     ),
                   ),
                 ],
