@@ -21,16 +21,6 @@ class _NotificationScreenState extends State<NotificationScreen> {
       indicatorColor: Color(0xFFD21C5C),
     ),
     _NotificationItem(
-      title: 'Cupom de 20% OFF!',
-      description:
-          'Use o código MAGENTA20 na sua próxima viagem para o aeroporto.',
-      category: 'Promoções',
-      timeLabel: '2h atrás',
-      color: Color(0xFF42B46A),
-      icon: Icons.local_offer_rounded,
-      indicatorColor: Color(0xFF13834A),
-    ),
-    _NotificationItem(
       title: 'Recibo da Viagem',
       description:
           'Sua viagem de ontem às 18:30 foi finalizada. O valor de R\$ 24,90 foi debitado.',

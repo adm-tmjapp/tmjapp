@@ -588,7 +588,7 @@ class _DashboardPageState extends State<DashboardPage>
               // 4. CONTROLES DO MAPA (Direita)
               Positioned(
                 right: horizontalPadding,
-                bottom: state.activeRide == null ? 112 : 16,
+                bottom: 16,
                 child: Column(
                   children: [
                     _MapZoomControls(
@@ -616,26 +616,12 @@ class _DashboardPageState extends State<DashboardPage>
                 ),
               ),
 
-              // 5. CARD PROMOCIONAL
-              if (state.activeRide == null)
-                Positioned(
-                  left: horizontalPadding,
-                  right: horizontalPadding,
-                  bottom: 16,
-                  child: _PromoCard(
-                    onTap: () {
-                      Navigator.of(context)
-                          .pushNamed(AppRoutes.promotionsAndCoupons);
-                    },
-                  ),
-                ),
-
-              // 6. MENSAGEM DE ERRO (Se houver)
+              // 5. MENSAGEM DE ERRO (Se houver)
               if (state.errorMessage != null && state.errorMessage!.isNotEmpty)
                 Positioned(
                   left: horizontalPadding,
                   right: horizontalPadding,
-                  bottom: state.activeRide == null ? 112 : 16,
+                  bottom: 16,
                   child: DecoratedBox(
                     decoration: BoxDecoration(
                       color: const Color(0xFF7F1D1D),
@@ -959,77 +945,6 @@ class _MapLocationButton extends StatelessWidget {
         ),
         child:
             const Icon(Icons.my_location_rounded, color: _textDark, size: 22),
-      ),
-    );
-  }
-}
-
-class _PromoCard extends StatelessWidget {
-  final VoidCallback onTap;
-
-  const _PromoCard({required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        constraints: const BoxConstraints(minHeight: 72),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFFCE2A7B), Color(0xFFB52166)],
-            begin: Alignment.centerLeft,
-            end: Alignment.centerRight,
-          ),
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: _primaryPink.withValues(alpha: 0.3),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Icon(Icons.local_offer_outlined,
-                  color: Colors.white, size: 22),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Text(
-                    'Ganhe 20% de desconto',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Indique um amigo hoje',
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.85),
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const Icon(Icons.chevron_right_rounded, color: Colors.white),
-          ],
-        ),
       ),
     );
   }

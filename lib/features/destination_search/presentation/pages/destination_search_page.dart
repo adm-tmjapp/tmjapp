@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-// 👇 AQUI: Adicionamos o import das rotas
-import 'package:tmjapp/app/router/app_router.dart';
 import 'package:tmjapp/features/destination_search/data/datasources/destination_search_local_datasource.dart';
 import 'package:tmjapp/features/destination_search/data/datasources/destination_search_remote_datasource.dart';
 import 'package:tmjapp/features/destination_search/data/repositories/destination_search_repository_impl.dart';
@@ -360,59 +358,6 @@ class _DestinationSearchPageState extends State<DestinationSearchPage> {
                             ),
                     ),
                   ],
-                ),
-                // Banner promocional fixo inferior
-                Positioned(
-                  left: 16,
-                  right: 16,
-                  bottom: 24,
-                  // 👇 AQUI: Adicionado o GestureDetector para navegar
-                  child: GestureDetector(
-                    onTap: () {
-                      // Remove o foco do teclado antes de navegar
-                      FocusScope.of(context).unfocus();
-                      Navigator.of(context)
-                          .pushNamed(AppRoutes.promotionsAndCoupons);
-                    },
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFD22776),
-                        borderRadius: BorderRadius.circular(18),
-                        boxShadow: const [
-                          BoxShadow(
-                            color: Color(0x33C72F79),
-                            blurRadius: 16,
-                            offset: Offset(0, 10),
-                          ),
-                        ],
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 14,
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.local_offer_rounded,
-                                color: Colors.white),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                'Ganhe 20% de desconto\nIndique um amigo hoje',
-                                style: GoogleFonts.plusJakartaSans(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w800,
-                                  height: 1.2,
-                                ),
-                              ),
-                            ),
-                            const Icon(Icons.chevron_right_rounded,
-                                color: Colors.white),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
                 ),
               ],
             );
