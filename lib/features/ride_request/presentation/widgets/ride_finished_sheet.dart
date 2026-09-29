@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-class RideFinishedSheet extends StatelessWidget {
+class RideFinishedSheet extends StatefulWidget {
   const RideFinishedSheet({
     super.key,
     required this.originTitle,
@@ -22,8 +22,16 @@ class RideFinishedSheet extends StatelessWidget {
   final VoidCallback? onClearActiveRide;
 
   @override
+  State<RideFinishedSheet> createState() => _RideFinishedSheetState();
+}
+
+class _RideFinishedSheetState extends State<RideFinishedSheet> {
+  int _selectedRating = 0;
+
+  @override
   Widget build(BuildContext context) {
-    final driverFirstName = (driverName ?? 'o motorista').split(' ').first;
+    final driverFirstName =
+        (widget.driverName ?? 'o motorista').split(' ').first;
 
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
@@ -80,7 +88,7 @@ class RideFinishedSheet extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  'R\$ ${finalPrice.toStringAsFixed(2).replaceAll('.', ',')}',
+                  'R\$ ${widget.finalPrice.toStringAsFixed(2).replaceAll('.', ',')}',
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 28,
                     fontWeight: FontWeight.w800,
@@ -95,7 +103,7 @@ class RideFinishedSheet extends StatelessWidget {
                         color: Color(0xFFC92D7A), size: 16),
                     const SizedBox(width: 6),
                     Text(
-                      paymentMethod,
+                      widget.paymentMethod,
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
@@ -116,9 +124,13 @@ class RideFinishedSheet extends StatelessWidget {
                 ),
                 const SizedBox(height: 18),
                 _RoutePoint(
-                    label: 'ORIGEM', value: originTitle, isFilled: false),
+                    label: 'ORIGEM',
+                    value: widget.originTitle,
+                    isFilled: false),
                 _RoutePoint(
-                    label: 'DESTINO', value: destinationTitle, isFilled: true),
+                    label: 'DESTINO',
+                    value: widget.destinationTitle,
+                    isFilled: true),
               ],
             ),
           ),
@@ -154,7 +166,7 @@ class RideFinishedSheet extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            driverName ?? 'João Santos',
+                            widget.driverName ?? 'João Santos',
                             style: GoogleFonts.plusJakartaSans(
                               fontSize: 16,
                               fontWeight: FontWeight.w700,
@@ -185,16 +197,42 @@ class RideFinishedSheet extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 12),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(5, (index) {
-                    return const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 2),
-                      child: Icon(Icons.star_outline_rounded,
-                          color: Color(0xFFC92D7A), size: 36),
-                    );
-                  }),
+                Semantics(
+                  label: _selectedRating == 0
+                      ? 'Avaliar motorista, de 1 a 5 estrelas'
+                      : 'Avaliação selecionada: $_selectedRating de 5 estrelas',
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(5, (index) {
+                      final rating = index + 1;
+                      final selected = rating <= _selectedRating;
+                      return IconButton(
+                        tooltip:
+                            '$rating ${rating == 1 ? 'estrela' : 'estrelas'}',
+                        onPressed: () =>
+                            setState(() => _selectedRating = rating),
+                        icon: Icon(
+                          selected
+                              ? Icons.star_rounded
+                              : Icons.star_outline_rounded,
+                          color: const Color(0xFFC92D7A),
+                          size: 36,
+                        ),
+                      );
+                    }),
+                  ),
                 ),
+                if (_selectedRating > 0) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    '$_selectedRating ${_selectedRating == 1 ? 'estrela selecionada' : 'estrelas selecionadas'}',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFFC92D7A),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -206,8 +244,8 @@ class RideFinishedSheet extends StatelessWidget {
             height: 56,
             child: ElevatedButton(
               onPressed: () {
-                onClearActiveRide?.call();
-                onFinish();
+                widget.onClearActiveRide?.call();
+                widget.onFinish();
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFFC92D7A),
