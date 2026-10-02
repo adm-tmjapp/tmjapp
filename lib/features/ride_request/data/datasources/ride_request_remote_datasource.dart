@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:developer' as developer;
 
 import 'package:tmjapp/api/base_api.dart';
 import 'package:tmjapp/features/destination_search/domain/entities/route_location.dart';
@@ -28,34 +29,48 @@ class RideRequestRemoteDataSource {
     String? friendDriverId,
     String? friendDriverPhone,
   }) async {
-    final response = await _baseApi.post(
-      Uri.parse('v2/passenger/rides'),
-      body: {
-        'userId': userId,
-        'pickup_location': {
-          'address': origin.title,
-          'coordinates': {
-            'latitude': origin.latitude,
-            'longitude': origin.longitude,
-          },
-        },
-        'destination_location': {
-          'address': destination.title,
-          'coordinates': {
-            'latitude': destination.latitude,
-            'longitude': destination.longitude,
-          },
-        },
-        if ((friendDriverId ?? '').trim().isNotEmpty) ...{
-          'ride_mode': 'friend',
-          'preferred_driver_id': friendDriverId!.trim(),
-          if ((friendDriverPhone ?? '').trim().isNotEmpty)
-            'preferred_driver_phone': friendDriverPhone!.trim(),
+    final requestUri = Uri.parse('v2/passenger/rides');
+    final requestBody = {
+      'userId': userId,
+      'pickup_location': {
+        'address': origin.title,
+        'coordinates': {
+          'latitude': origin.latitude,
+          'longitude': origin.longitude,
         },
       },
+      'destination_location': {
+        'address': destination.title,
+        'coordinates': {
+          'latitude': destination.latitude,
+          'longitude': destination.longitude,
+        },
+      },
+      if ((friendDriverId ?? '').trim().isNotEmpty) ...{
+        'ride_mode': 'friend',
+        'preferred_driver_id': friendDriverId!.trim(),
+        if ((friendDriverPhone ?? '').trim().isNotEmpty)
+          'preferred_driver_phone': friendDriverPhone!.trim(),
+      },
+    };
+
+    developer.log(
+      'POST $requestUri\nRequest body: ${jsonEncode(requestBody)}',
+      name: 'RideRequest.createRideQuote',
+    );
+    developer.debugger(when: true);
+
+    final response = await _baseApi.post(
+      requestUri,
+      body: requestBody,
     );
 
     if (response.statusCode != 201 && response.statusCode != 200) {
+      developer.log(
+        'Response status: ${response.statusCode}\nResponse body: ${response.body}',
+        name: 'RideRequest.createRideQuote',
+        level: 1000,
+      );
       throw Exception('Não foi possivel carregar as opcões de corrida.');
     }
 
@@ -73,6 +88,11 @@ class RideRequestRemoteDataSource {
             ? (responseData['data'] as Map<String, dynamic>)['products']
             : null);
     if (products is! List) {
+      developer.log(
+        'Response status: ${response.statusCode}\nResponse body: ${response.body}',
+        name: 'RideRequest.createRideQuote',
+        level: 1000,
+      );
       throw Exception('Nenhuma opção de veiculo foi encontrada.');
     }
     print('🔥 RESPOSTA DA API:');

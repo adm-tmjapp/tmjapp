@@ -7,6 +7,7 @@ import 'package:tmjapp/features/payments/domain/pix_payment_data.dart';
 import 'package:tmjapp/features/ride_request/domain/entities/ride_request_args.dart';
 import 'package:flutter/services.dart';
 import 'package:tmjapp/api/base_api.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 
 class PixPaymentPage extends StatefulWidget {
   final double amount;
@@ -225,28 +226,34 @@ class _PixPaymentPageState extends State<PixPaymentPage>
 
   Widget _buildQrCode() {
     final image = normalizedPixBase64(_encodedImage);
-    if (image == null) {
-      return Center(
-        child: _isCreating
-            ? const CircularProgressIndicator(color: Color(0xFFC92D7A))
-            : const Icon(
-                Icons.qr_code_2_rounded,
-                color: Color(0xFF94A3B8),
-                size: 90,
-              ),
-      );
-    }
+    if (image == null) return _buildGeneratedQrCode();
     try {
       return Image.memory(base64Decode(image), fit: BoxFit.contain);
     } catch (_) {
-      return const Center(
-        child: Icon(
-          Icons.broken_image_outlined,
-          color: Color(0xFF94A3B8),
-          size: 64,
-        ),
+      return _buildGeneratedQrCode();
+    }
+  }
+
+  Widget _buildGeneratedQrCode() {
+    final pixCode = _pixCode?.trim();
+    if (pixCode != null && pixCode.isNotEmpty) {
+      return QrImageView(
+        data: pixCode,
+        version: QrVersions.auto,
+        size: 190,
+        backgroundColor: Colors.white,
+        errorCorrectionLevel: QrErrorCorrectLevel.M,
       );
     }
+    return Center(
+      child: _isCreating
+          ? const CircularProgressIndicator(color: Color(0xFFC92D7A))
+          : const Icon(
+              Icons.qr_code_2_rounded,
+              color: Color(0xFF94A3B8),
+              size: 90,
+            ),
+    );
   }
 
   Future<void> _expirePayment() async {
