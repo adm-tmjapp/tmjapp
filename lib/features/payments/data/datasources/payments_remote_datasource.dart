@@ -21,6 +21,95 @@ class PaymentsRemoteDataSource {
 
   final BaseApi _baseApi;
 
+  Future<List<PaymentMethodItem>> fetchSavedCards() async {
+    final response =
+        await _baseApi.get(Uri.parse('v2/passenger/payments/methods'));
+
+    if (response.statusCode != 200) {
+      throw Exception('Não foi possível carregar seus cartões salvos.');
+    }
+
+    final payload = jsonDecode(response.body);
+    final methods = payload is Map<String, dynamic> ? payload['methods'] : null;
+
+    return (methods is List ? methods : const <dynamic>[])
+        .whereType<Map<String, dynamic>>()
+        .where((item) =>
+            item['type']?.toString().toLowerCase() == 'card' &&
+            item['status']?.toString().toUpperCase() != 'INACTIVE')
+        .map(_mapSavedCard)
+        .where((card) => card.id.isNotEmpty && (card.last4 ?? '').isNotEmpty)
+        .toList(growable: false);
+  }
+
+  Future<PaymentMethodItem> tokenizeCard({
+    required String holderName,
+    required String number,
+    required String expiryMonth,
+    required String expiryYear,
+    required String ccv,
+  }) async {
+    final response = await _baseApi.post(
+      Uri.parse('v2/passenger/payments/methods/card-tokenize'),
+      body: {
+        'holderName': holderName,
+        'number': number,
+        'expiryMonth': expiryMonth,
+        'expiryYear': expiryYear,
+        'ccv': ccv,
+        'setAsDefault': true,
+      },
+    );
+
+    if (response.statusCode != 201) {
+      throw Exception(
+          _errorMessage(response.body, 'Não foi possível salvar o cartão.'));
+    }
+
+    return _mapSavedCard(jsonDecode(response.body) as Map<String, dynamic>);
+  }
+
+  PaymentMethodItem _mapSavedCard(Map<String, dynamic> item) {
+    final brand = item['brand']?.toString().toLowerCase() ?? 'card';
+    final last4 = item['last4']?.toString() ?? '';
+    final holderName = item['holderName']?.toString() ?? '';
+    return PaymentMethodItem(
+      id: item['id']?.toString() ?? '',
+      brand: brand,
+      label: '${_brandLabel(brand)} •••• $last4',
+      subtitle: holderName,
+      last4: last4,
+      holderName: holderName,
+      expiry: item['expiry']?.toString() ?? '',
+      isLocal: false,
+    );
+  }
+
+  String _errorMessage(String body, String fallback) {
+    try {
+      final payload = jsonDecode(body);
+      if (payload is Map<String, dynamic> && payload['message'] != null) {
+        return payload['message'].toString();
+      }
+    } catch (_) {
+      // Retorna a mensagem padrão quando a API não envia JSON.
+    }
+    return fallback;
+  }
+
+  String _brandLabel(String brand) {
+    switch (brand.toLowerCase()) {
+      case 'visa':
+        return 'Visa';
+      case 'mastercard':
+        return 'Mastercard';
+      case 'elo':
+        return 'Elo';
+      default:
+        return 'Cartão';
+    }
+  }
+
   Future<PaymentsOverview> fetchOverview() async {
     final response = await _baseApi.get(Uri.parse('v2/passenger/rides'));
 

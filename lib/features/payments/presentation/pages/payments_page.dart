@@ -264,32 +264,33 @@ class _PaymentsPageState extends State<PaymentsPage> {
     );
     if (result == null || !mounted) return;
 
-    final replacesNumber = result.cardNumberDigits.isNotEmpty;
-    final last4 = replacesNumber
-        ? result.cardNumberDigits.substring(result.cardNumberDigits.length - 4)
-        : existingCard!.last4!;
-    final brand = replacesNumber
-        ? _detectCardBrand(result.cardNumberDigits)
-        : existingCard!.brand;
-    await _controller.saveCard(
-      PaymentMethodItem(
-        id: existingCard?.id ??
-            'local-${DateTime.now().microsecondsSinceEpoch}',
-        brand: brand,
-        label: '${_brandLabel(brand)} •••• $last4',
-        subtitle: result.holderName,
-        last4: last4,
+    if (existingCard != null && result.cardNumberDigits.isEmpty) return;
+    final expiryParts = result.expiry.split('/');
+    if (expiryParts.length != 2) return;
+    try {
+      await _controller.tokenizeCard(
         holderName: result.holderName,
-        expiry: result.expiry,
-        isLocal: true,
-      ),
-    );
+        number: result.cardNumberDigits,
+        expiryMonth: expiryParts[0].trim(),
+        expiryYear: expiryParts[1].trim().length == 2
+            ? '20${expiryParts[1].trim()}'
+            : expiryParts[1].trim(),
+        ccv: result.ccv,
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error.toString().replaceFirst('Exception: ', '')),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(existingCard == null
-            ? 'Cartão salvo com sucesso!'
-            : 'Cartão atualizado com sucesso!'),
+        content: Text('Cartão salvo com segurança no ASAAS!'),
         backgroundColor: const Color(0xFF16A34A),
       ),
     );
@@ -301,25 +302,6 @@ class _PaymentsPageState extends State<PaymentsPage> {
         builder: (_) => PaymentMethodDemoPage(method: method),
       ),
     );
-  }
-
-  String _detectCardBrand(String digits) {
-    if (digits.startsWith('636368') || digits.startsWith('438935')) {
-      return 'elo';
-    }
-    if (digits.startsWith('4')) return 'visa';
-    final prefix = int.tryParse(digits.substring(0, 2)) ?? 0;
-    if (prefix >= 51 && prefix <= 55) return 'mastercard';
-    return 'card';
-  }
-
-  String _brandLabel(String brand) {
-    return switch (brand) {
-      'visa' => 'Visa',
-      'mastercard' => 'Mastercard',
-      'elo' => 'Elo',
-      _ => 'Cartão',
-    };
   }
 }
 

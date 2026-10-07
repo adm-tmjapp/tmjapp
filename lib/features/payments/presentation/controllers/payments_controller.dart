@@ -38,7 +38,6 @@ class PaymentsController extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final localCards = await _localDataSource.getCards();
       final balance = await _localDataSource.getBalance();
       PaymentsOverview overview;
       try {
@@ -52,13 +51,22 @@ class PaymentsController extends ChangeNotifier {
       }
       if (_isDisposed) return;
 
+      List<PaymentMethodItem> savedCards;
+      try {
+        savedCards = await _remoteDataSource.fetchSavedCards();
+      } catch (_) {
+        savedCards = const [];
+      }
+
       _state = _state.copyWith(
         isLoading: false,
         totalSpent: overview.totalSpent,
         completedRides: overview.completedRides,
         methods: [
-          ...localCards,
-          ...overview.methods.where(_isCardMethod),
+          ...savedCards,
+          ...overview.methods.where(_isCardMethod).where(
+                (item) => savedCards.every((card) => card.id != item.id),
+              ),
         ],
         balance: balance,
         clearError: true,
@@ -74,12 +82,25 @@ class PaymentsController extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> saveCard(PaymentMethodItem card) async {
-    await _localDataSource.saveCard(card);
-    final localCards = await _localDataSource.getCards();
-    final remoteMethods =
-        _state.methods.where((item) => !item.isLocal && _isCardMethod(item));
-    _state = _state.copyWith(methods: [...localCards, ...remoteMethods]);
+  Future<void> tokenizeCard({
+    required String holderName,
+    required String number,
+    required String expiryMonth,
+    required String expiryYear,
+    required String ccv,
+  }) async {
+    final card = await _remoteDataSource.tokenizeCard(
+      holderName: holderName,
+      number: number,
+      expiryMonth: expiryMonth,
+      expiryYear: expiryYear,
+      ccv: ccv,
+    );
+    final methods = [
+      card,
+      ..._state.methods.where((item) => item.id != card.id),
+    ];
+    _state = _state.copyWith(methods: methods);
     notifyListeners();
   }
 
