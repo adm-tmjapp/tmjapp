@@ -1,8 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
-import 'package:tmjapp/api/base_api.dart';
-import 'dart:convert';
 import 'package:tmjapp/core/presentation/controllers/disposable_change_notifier.dart';
 import 'package:tmjapp/features/destination_search/domain/entities/route_location.dart';
 import 'package:tmjapp/features/ride_request/domain/entities/ride_payment_method.dart';
@@ -19,6 +17,7 @@ import 'package:tmjapp/features/ride_request/domain/usecases/get_ride_status_use
 import 'package:tmjapp/features/ride_request/domain/usecases/issue_ride_realtime_token_usecase.dart';
 import 'package:tmjapp/features/ride_request/domain/usecases/update_ride_route_usecase.dart';
 import 'package:tmjapp/features/ride_request/presentation/controllers/ride_request_state.dart';
+import 'package:tmjapp/features/payments/data/datasources/payments_remote_datasource.dart';
 
 class RideRequestController extends ChangeNotifier
     with DisposableChangeNotifier {
@@ -33,6 +32,7 @@ class RideRequestController extends ChangeNotifier
     required IssueRideRealtimeTokenUseCase issueRideRealtimeTokenUseCase,
     required CancelRideUseCase cancelRideUseCase,
     required UpdateRideRouteUseCase updateRideRouteUseCase,
+    PaymentsRemoteDataSource? paymentsRemoteDataSource,
   })  : _args = args,
         _createRideQuoteUseCase = createRideQuoteUseCase,
         _getRidePaymentOptionsUseCase = getRidePaymentOptionsUseCase,
@@ -42,7 +42,9 @@ class RideRequestController extends ChangeNotifier
         _getRideEtaUseCase = getRideEtaUseCase,
         _issueRideRealtimeTokenUseCase = issueRideRealtimeTokenUseCase,
         _cancelRideUseCase = cancelRideUseCase,
-        _updateRideRouteUseCase = updateRideRouteUseCase;
+        _updateRideRouteUseCase = updateRideRouteUseCase,
+        _paymentsRemoteDataSource =
+            paymentsRemoteDataSource ?? PaymentsRemoteDataSource();
 
   final RideRequestArgs _args;
   final CreateRideQuoteUseCase _createRideQuoteUseCase;
@@ -54,9 +56,9 @@ class RideRequestController extends ChangeNotifier
   final IssueRideRealtimeTokenUseCase _issueRideRealtimeTokenUseCase;
   final CancelRideUseCase _cancelRideUseCase;
   final UpdateRideRouteUseCase _updateRideRouteUseCase;
+  final PaymentsRemoteDataSource _paymentsRemoteDataSource;
   Timer? _statusPollingTimer;
   bool _checkoutPreparedForPayment = false;
-  final BaseApi _paymentApi = BaseApi();
 
   RideRequestState _state = RideRequestState.initial();
 
@@ -415,14 +417,10 @@ class RideRequestController extends ChangeNotifier
         if (cardId == null || cardId.trim().isEmpty) {
           throw Exception('Selecione um cartão válido.');
         }
-        final paymentResponse = await _paymentApi.post(
-          Uri.parse('v2/passenger/rides/${_state.rideId}/payments/card/saved'),
-          body: {'paymentMethodId': cardId},
+        await _paymentsRemoteDataSource.payWithSavedCard(
+          rideId: _state.rideId!,
+          paymentMethodId: cardId,
         );
-        if (paymentResponse.statusCode != 201) {
-          final body = jsonDecode(paymentResponse.body);
-          throw Exception(body is Map ? body['message'] : 'Não foi possível processar o cartão.');
-        }
       }
       if (isDisposed) return;
       final nextStage = _resolveStage(checkoutResult.status);
@@ -453,7 +451,9 @@ class RideRequestController extends ChangeNotifier
   Future<bool> prepareCheckoutForPayment() async {
     final product = _state.selectedProduct;
     final rideId = _state.rideId;
-    if (product == null || rideId == null || rideId.trim().isEmpty) return false;
+    if (product == null || rideId == null || rideId.trim().isEmpty) {
+      return false;
+    }
     try {
       final result = await _checkoutRideUseCase.execute(
         rideId: rideId,

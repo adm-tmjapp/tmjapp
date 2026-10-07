@@ -69,6 +69,25 @@ class PaymentsRemoteDataSource {
     return _mapSavedCard(jsonDecode(response.body) as Map<String, dynamic>);
   }
 
+  Future<void> payWithSavedCard({
+    required String rideId,
+    required String paymentMethodId,
+  }) async {
+    final response = await _baseApi.post(
+      Uri.parse('v2/passenger/rides/$rideId/payments/card/saved'),
+      body: {'paymentMethodId': paymentMethodId},
+    );
+
+    if (response.statusCode != 201) {
+      throw Exception(
+        _errorMessage(
+          response.body,
+          'Não foi possível processar o cartão salvo.',
+        ),
+      );
+    }
+  }
+
   PaymentMethodItem _mapSavedCard(Map<String, dynamic> item) {
     final brand = item['brand']?.toString().toLowerCase() ?? 'card';
     final last4 = item['last4']?.toString() ?? '';

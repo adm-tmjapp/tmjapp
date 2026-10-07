@@ -79,4 +79,23 @@ void main() {
     expect(cards.single.id, 'active');
     expect(cards.single.last4, '5555');
   });
+
+  test('processa uma corrida com cartão salvo pelo identificador seguro',
+      () async {
+    String? requestBody;
+    final client = MockClient((request) async {
+      requestBody = request.body;
+      return http.Response('{}', 201);
+    });
+    final dataSource = PaymentsRemoteDataSource(
+      baseApi: BaseApi(baseUrl: 'https://api.tmj.test/', client: client),
+    );
+
+    await dataSource.payWithSavedCard(
+      rideId: 'ride-123',
+      paymentMethodId: 'cus_card_123',
+    );
+
+    expect(requestBody, contains('"paymentMethodId":"cus_card_123"'));
+  });
 }
