@@ -56,55 +56,119 @@ class _PaymentsPageState extends State<PaymentsPage> {
                   title: 'Meus Pagamentos',
                 ),
                 Expanded(
-                  child: ListView(
-                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
-                    children: [
-                      _TmjPayCard(
-                        balance: state.balance,
-                        completedRides: state.completedRides,
-                        onAddBalanceTap: () async {
-                          // 1. Abre a nova tela e aguarda o usuário escolher o valor
-                          final selectedAmount =
-                              await Navigator.of(context).push<double>(
-                            MaterialPageRoute(
-                              builder: (_) => const AddBalancePage(),
-                            ),
-                          );
-
-                          // 2. Se o usuário escolheu um valor e confirmou:
-                          if (selectedAmount != null && selectedAmount > 0) {
-                            if (!context.mounted) return;
-                            await _controller.addBalance(selectedAmount);
-                            if (!context.mounted) return;
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                    'Saldo de R\$ ${selectedAmount.toStringAsFixed(2).replaceAll('.', ',')} adicionado.'),
-                                backgroundColor: _primaryPink,
+                  child: RefreshIndicator(
+                    color: _primaryPink,
+                    onRefresh: _controller.refreshSavedCards,
+                    child: ListView(
+                      padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+                      children: [
+                        _TmjPayCard(
+                          balance: state.balance,
+                          completedRides: state.completedRides,
+                          onAddBalanceTap: () async {
+                            // 1. Abre a nova tela e aguarda o usuário escolher o valor
+                            final selectedAmount =
+                                await Navigator.of(context).push<double>(
+                              MaterialPageRoute(
+                                builder: (_) => const AddBalancePage(),
                               ),
                             );
-                          }
-                        },
-                      ),
-                      const SizedBox(height: 24),
-                      const _SectionTitle('CARTÕES SALVOS'),
-                      const SizedBox(height: 12),
 
-                      // Lógica de estado mantida, mas envelopada no novo layout branco
-                      if (state.isLoading)
-                        const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 28),
-                          child: Center(
-                              child: CircularProgressIndicator(
-                                  color: _primaryPink)),
-                        )
-                      else if (state.errorMessage != null)
-                        _InlineMessage(message: state.errorMessage!)
-                      else if (state.methods.isEmpty)
-                        const _InlineMessage(
-                          message: 'Nenhum cartão salvo encontrado.',
-                        )
-                      else
+                            // 2. Se o usuário escolheu um valor e confirmou:
+                            if (selectedAmount != null && selectedAmount > 0) {
+                              if (!context.mounted) return;
+                              await _controller.addBalance(selectedAmount);
+                              if (!context.mounted) return;
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                      'Saldo de R\$ ${selectedAmount.toStringAsFixed(2).replaceAll('.', ',')} adicionado.'),
+                                  backgroundColor: _primaryPink,
+                                ),
+                              );
+                            }
+                          },
+                        ),
+                        const SizedBox(height: 24),
+                        const _SectionTitle('CARTÕES SALVOS'),
+                        const SizedBox(height: 12),
+
+                        // Lógica de estado mantida, mas envelopada no novo layout branco
+                        if (state.isLoading)
+                          const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 28),
+                            child: Center(
+                                child: CircularProgressIndicator(
+                                    color: _primaryPink)),
+                          )
+                        else if (state.errorMessage != null)
+                          _InlineMessage(message: state.errorMessage!)
+                        else if (state.methods.isEmpty)
+                          const _InlineMessage(
+                            message: 'Nenhum cartão salvo encontrado.',
+                          )
+                        else
+                          Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.grey.shade200),
+                            ),
+                            child: Column(
+                              children:
+                                  state.methods.asMap().entries.map((entry) {
+                                final index = entry.key;
+                                final item = entry.value;
+                                return Column(
+                                  children: [
+                                    if (item.isLocal)
+                                      _SavedCreditCard(
+                                        item: item,
+                                        onEdit: () => _openCardForm(item),
+                                      )
+                                    else
+                                      _PaymentMethodTile(item: item),
+                                    if (index < state.methods.length - 1)
+                                      Divider(
+                                          height: 1,
+                                          thickness: 1,
+                                          color: Colors.grey.shade100,
+                                          indent: 64),
+                                  ],
+                                );
+                              }).toList(),
+                            ),
+                          ),
+
+                        const SizedBox(height: 16),
+                        // 👇 AQUI: Botão estático de Adicionar Cartão atualizado 👇
+                        GestureDetector(
+                          onTap: () async {
+                            // Navega para a tela de adicionar cartão e aguarda o resultado
+                            await _openCardForm(null);
+                          },
+                          child: Row(
+                            children: [
+                              const Icon(Icons.add_circle_outline_rounded,
+                                  color: _primaryPink, size: 24),
+                              const SizedBox(width: 12),
+                              Text(
+                                'Adicionar Novo Cartão',
+                                style: GoogleFonts.plusJakartaSans(
+                                  color: _primaryPink,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(height: 32),
+                        const _SectionTitle('OUTROS MÉTODOS'),
+                        const SizedBox(height: 12),
+
+                        // Lista estática de Outros Métodos conforme imagem
                         Container(
                           decoration: BoxDecoration(
                             color: Colors.white,
@@ -112,116 +176,56 @@ class _PaymentsPageState extends State<PaymentsPage> {
                             border: Border.all(color: Colors.grey.shade200),
                           ),
                           child: Column(
-                            children:
-                                state.methods.asMap().entries.map((entry) {
-                              final index = entry.key;
-                              final item = entry.value;
-                              return Column(
-                                children: [
-                                  if (item.isLocal)
-                                    _SavedCreditCard(
-                                      item: item,
-                                      onEdit: () => _openCardForm(item),
-                                    )
-                                  else
-                                    _PaymentMethodTile(item: item),
-                                  if (index < state.methods.length - 1)
-                                    Divider(
-                                        height: 1,
-                                        thickness: 1,
-                                        color: Colors.grey.shade100,
-                                        indent: 64),
-                                ],
-                              );
-                            }).toList(),
+                            children: [
+                              _OtherMethodTile(
+                                icon: Icons.pix_rounded,
+                                iconColor: const Color(0xFF16A34A),
+                                iconBgColor: const Color(0xFFDCFCE7),
+                                title: 'PIX',
+                                subtitle: 'Pague instantaneamente',
+                                onTap: () => _openMethodDemo(
+                                  PaymentMethodDemo.pix,
+                                ),
+                              ),
+                              Divider(
+                                  height: 1,
+                                  thickness: 1,
+                                  color: Colors.grey.shade100,
+                                  indent: 64),
+                              _OtherMethodTile(
+                                icon: Icons.payments_rounded,
+                                iconColor: const Color(0xFF15803D),
+                                iconBgColor: const Color(0xFFDCFCE7),
+                                title: 'Dinheiro',
+                                subtitle: 'Pague diretamente ao motorista',
+                                onTap: () => _openMethodDemo(
+                                  PaymentMethodDemo.cash,
+                                ),
+                              ),
+                              Divider(
+                                  height: 1,
+                                  thickness: 1,
+                                  color: Colors.grey.shade100,
+                                  indent: 64),
+                              _OtherMethodTile(
+                                icon: Icons.account_balance_wallet_rounded,
+                                iconColor: const Color(0xFF334155),
+                                iconBgColor: const Color(0xFFF1F5F9),
+                                title: 'Google Pay',
+                                subtitle: 'Configurado via dispositivo',
+                                onTap: () => _openMethodDemo(
+                                  PaymentMethodDemo.googlePay,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
 
-                      const SizedBox(height: 16),
-                      // 👇 AQUI: Botão estático de Adicionar Cartão atualizado 👇
-                      GestureDetector(
-                        onTap: () async {
-                          // Navega para a tela de adicionar cartão e aguarda o resultado
-                          await _openCardForm(null);
-                        },
-                        child: Row(
-                          children: [
-                            const Icon(Icons.add_circle_outline_rounded,
-                                color: _primaryPink, size: 24),
-                            const SizedBox(width: 12),
-                            Text(
-                              'Adicionar Novo Cartão',
-                              style: GoogleFonts.plusJakartaSans(
-                                color: _primaryPink,
-                                fontSize: 15,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      const SizedBox(height: 32),
-                      const _SectionTitle('OUTROS MÉTODOS'),
-                      const SizedBox(height: 12),
-
-                      // Lista estática de Outros Métodos conforme imagem
-                      Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.grey.shade200),
-                        ),
-                        child: Column(
-                          children: [
-                            _OtherMethodTile(
-                              icon: Icons.pix_rounded,
-                              iconColor: const Color(0xFF16A34A),
-                              iconBgColor: const Color(0xFFDCFCE7),
-                              title: 'PIX',
-                              subtitle: 'Pague instantaneamente',
-                              onTap: () => _openMethodDemo(
-                                PaymentMethodDemo.pix,
-                              ),
-                            ),
-                            Divider(
-                                height: 1,
-                                thickness: 1,
-                                color: Colors.grey.shade100,
-                                indent: 64),
-                            _OtherMethodTile(
-                              icon: Icons.payments_rounded,
-                              iconColor: const Color(0xFF15803D),
-                              iconBgColor: const Color(0xFFDCFCE7),
-                              title: 'Dinheiro',
-                              subtitle: 'Pague diretamente ao motorista',
-                              onTap: () => _openMethodDemo(
-                                PaymentMethodDemo.cash,
-                              ),
-                            ),
-                            Divider(
-                                height: 1,
-                                thickness: 1,
-                                color: Colors.grey.shade100,
-                                indent: 64),
-                            _OtherMethodTile(
-                              icon: Icons.account_balance_wallet_rounded,
-                              iconColor: const Color(0xFF334155),
-                              iconBgColor: const Color(0xFFF1F5F9),
-                              title: 'Google Pay',
-                              subtitle: 'Configurado via dispositivo',
-                              onTap: () => _openMethodDemo(
-                                PaymentMethodDemo.googlePay,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      const SizedBox(height: 24),
-                      // Card Promocional conforme imagem
-                      const _PromoCard(),
-                    ],
+                        const SizedBox(height: 24),
+                        // Card Promocional conforme imagem
+                        const _PromoCard(),
+                      ],
+                    ),
                   ),
                 ),
                 HomeBottomNavigation(

@@ -104,6 +104,32 @@ class PaymentsController extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> refreshSavedCards() async {
+    if (_isDisposed) return;
+
+    _state = _state.copyWith(isLoading: true, clearError: true);
+    notifyListeners();
+
+    try {
+      final savedCards = await _remoteDataSource.fetchSavedCards();
+      if (_isDisposed) return;
+
+      _state = _state.copyWith(
+        isLoading: false,
+        methods: savedCards,
+        clearError: true,
+      );
+    } catch (error) {
+      if (_isDisposed) return;
+
+      _state = _state.copyWith(
+        isLoading: false,
+        errorMessage: error.toString().replaceFirst('Exception: ', ''),
+      );
+    }
+    notifyListeners();
+  }
+
   Future<void> addBalance(double amount) async {
     if (amount <= 0) return;
     final balance = await _localDataSource.addBalance(amount);
