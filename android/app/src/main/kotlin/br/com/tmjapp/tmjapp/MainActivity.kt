@@ -75,6 +75,8 @@ class MainActivity : FlutterFragmentActivity() {
                 ).apply {
                     description = "Acompanhamento e continuidade da corrida"
                     setShowBadge(true)
+                    enableVibration(true)
+                    vibrationPattern = longArrayOf(0L, 500L, 250L, 500L)
                 },
             )
         }
@@ -104,6 +106,7 @@ class MainActivity : FlutterFragmentActivity() {
                 .setContentIntent(pendingIntent)
                 .setCategory(Notification.CATEGORY_TRANSPORT)
                 .setColor(Color.rgb(201, 45, 122))
+                .setVibrate(longArrayOf(0L, 500L, 250L, 500L))
                 .setOngoing(true)
                 .setAutoCancel(false)
                 .setOnlyAlertOnce(true)
