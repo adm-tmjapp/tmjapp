@@ -241,7 +241,9 @@ class RideRequestRemoteDataSource {
         Uri.parse('v2/passenger/payments/options?rideId=$rideId'),
       );
       final methodsResponse = await _baseApi.get(
-        Uri.parse('v2/passenger/payments/methods'),
+        Uri.parse(
+          'v2/passenger/payments/methods?type=card&status=ACTIVE',
+        ),
       );
 
       if (optionsResponse.statusCode != 200 ||

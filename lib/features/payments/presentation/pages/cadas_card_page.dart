@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'dart:convert';
-import 'package:tmjapp/api/base_api.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:tmjapp/features/payments/data/datasources/payments_remote_datasource.dart';
+import 'package:tmjapp/features/payments/domain/entities/payment_method_item.dart';
 import 'package:tmjapp/features/payments/presentation/pages/add_card_page.dart';
 
 // Modelo simples para o exemplo
@@ -28,9 +28,12 @@ class RegisteredCardsPage extends StatefulWidget {
 
 class _RegisteredCardsPageState extends State<RegisteredCardsPage> {
   final List<CreditCardModel> _cards = [];
-  final BaseApi _api = BaseApi();
+  final PaymentsRemoteDataSource _remoteDataSource = PaymentsRemoteDataSource();
 
-  String _selectedCardId = '1';
+  String? _selectedCardId;
+  bool _isLoading = true;
+  bool _isSaving = false;
+  String? _errorMessage;
 
   @override
   void initState() {
@@ -39,28 +42,37 @@ class _RegisteredCardsPageState extends State<RegisteredCardsPage> {
   }
 
   Future<void> _loadCards() async {
+    if (!mounted) return;
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
     try {
-      final response = await _api.get(Uri.parse('v2/passenger/payments/methods'));
-      if (response.statusCode != 200 || !mounted) return;
-      final payload = jsonDecode(response.body) as Map<String, dynamic>;
-      final methods = (payload['methods'] as List<dynamic>? ?? const [])
-          .whereType<Map<String, dynamic>>()
-          .where((item) => item['type'] == 'card')
-          .map((item) => CreditCardModel(
-                id: item['id'].toString(),
-                brand: item['brand']?.toString() ?? 'Cartão',
-                last4Digits: item['last4']?.toString() ?? '',
-                expiry: '',
-              ))
-          .where((item) => item.last4Digits.isNotEmpty)
-          .toList();
+      final methods = await _remoteDataSource.fetchSavedCards();
+      if (!mounted) return;
       setState(() {
         _cards
           ..clear()
-          ..addAll(methods);
-        if (_cards.isNotEmpty) _selectedCardId = _cards.first.id;
+          ..addAll(methods.map(_toCreditCard));
+        _selectedCardId = _cards.isNotEmpty ? _cards.first.id : null;
+        _isLoading = false;
       });
-    } catch (_) {}
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _errorMessage = error.toString().replaceFirst('Exception: ', '');
+      });
+    }
+  }
+
+  CreditCardModel _toCreditCard(PaymentMethodItem method) {
+    return CreditCardModel(
+      id: method.id,
+      brand: method.brand,
+      last4Digits: method.last4 ?? '',
+      expiry: method.expiry ?? '',
+    );
   }
 
   @override
@@ -102,86 +114,103 @@ class _RegisteredCardsPageState extends State<RegisteredCardsPage> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  if (_cards.isEmpty)
-                    const Text('Nenhum cartão salvo no Asaas. Adicione um cartão antes de continuar.'),
-                  ..._cards.map((card) {
-                    final isSelected = _selectedCardId == card.id;
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(16),
-                        onTap: () {
-                          setState(() => _selectedCardId = card.id);
-                        },
-                        child: Ink(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: isSelected
-                                ? const Color(0xFFFDF2F8)
-                                : Colors.white,
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
+                  if (_isLoading)
+                    const Center(child: CircularProgressIndicator())
+                  else if (_errorMessage != null)
+                    Column(
+                      children: [
+                        Text(_errorMessage!),
+                        TextButton(
+                          onPressed: _loadCards,
+                          child: const Text('Tentar novamente'),
+                        ),
+                      ],
+                    )
+                  else if (_cards.isEmpty)
+                    const Text(
+                        'Nenhum cartão salvo no Asaas. Adicione um cartão antes de continuar.'),
+                  if (!_isLoading && _errorMessage == null)
+                    ..._cards.map((card) {
+                      final isSelected = _selectedCardId == card.id;
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(16),
+                          onTap: () {
+                            setState(() => _selectedCardId = card.id);
+                          },
+                          child: Ink(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
                               color: isSelected
-                                  ? const Color(0xFFC92D7A)
-                                  : const Color(0xFFE2E8F0),
-                              width: 1.5,
+                                  ? const Color(0xFFFDF2F8)
+                                  : Colors.white,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: isSelected
+                                    ? const Color(0xFFC92D7A)
+                                    : const Color(0xFFE2E8F0),
+                                width: 1.5,
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 48,
+                                  height: 32,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFF1F5F9),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Icon(
+                                    card.brand == 'Visa'
+                                        ? Icons.payment
+                                        : Icons.credit_card,
+                                    color: const Color(0xFF334155),
+                                  ),
+                                ),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        '${card.brand} •••• ${card.last4Digits}',
+                                        style: GoogleFonts.plusJakartaSans(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w700,
+                                          color: const Color(0xFF0F172A),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        'Vence em ${card.expiry}',
+                                        style: GoogleFonts.plusJakartaSans(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w500,
+                                          color: const Color(0xFF64748B),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                if (isSelected)
+                                  const Icon(Icons.check_circle,
+                                      color: Color(0xFFC92D7A)),
+                              ],
                             ),
                           ),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 48,
-                                height: 32,
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFF1F5F9),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Icon(
-                                  card.brand == 'Visa'
-                                      ? Icons.payment
-                                      : Icons.credit_card,
-                                  color: const Color(0xFF334155),
-                                ),
-                              ),
-                              const SizedBox(width: 16),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      '${card.brand} •••• ${card.last4Digits}',
-                                      style: GoogleFonts.plusJakartaSans(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w700,
-                                        color: const Color(0xFF0F172A),
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      'Vence em ${card.expiry}',
-                                      style: GoogleFonts.plusJakartaSans(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w500,
-                                        color: const Color(0xFF64748B),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              if (isSelected)
-                                const Icon(Icons.check_circle,
-                                    color: Color(0xFFC92D7A)),
-                            ],
-                          ),
                         ),
-                      ),
-                    );
-                  }),
+                      );
+                    }),
                   const SizedBox(height: 8),
                   InkWell(
                     borderRadius: BorderRadius.circular(16),
                     onTap: () async {
-                      final result = await Navigator.of(context).push<CardFormResult>(
+                      if (_isSaving) return;
+                      final result =
+                          await Navigator.of(context).push<CardFormResult>(
                         MaterialPageRoute(
                           builder: (context) => const AddCardPage(),
                         ),
@@ -189,20 +218,31 @@ class _RegisteredCardsPageState extends State<RegisteredCardsPage> {
                       if (result == null) return;
                       final expiryParts = result.expiry.split('/');
                       if (expiryParts.length != 2) return;
-                      final response = await _api.post(
-                        Uri.parse('v2/passenger/payments/methods/card-tokenize'),
-                        body: {
-                          'holderName': result.holderName,
-                          'number': result.cardNumberDigits,
-                          'expiryMonth': expiryParts[0].trim(),
-                          'expiryYear': expiryParts[1].trim().length == 2
+                      setState(() => _isSaving = true);
+                      try {
+                        await _remoteDataSource.tokenizeCard(
+                          holderName: result.holderName,
+                          number: result.cardNumberDigits,
+                          expiryMonth: expiryParts[0].trim(),
+                          expiryYear: expiryParts[1].trim().length == 2
                               ? '20${expiryParts[1].trim()}'
                               : expiryParts[1].trim(),
-                          'ccv': result.ccv,
-                          'setAsDefault': true,
-                        },
-                      );
-                      if (response.statusCode == 201) await _loadCards();
+                          ccv: result.ccv,
+                        );
+                        await _loadCards();
+                      } catch (error) {
+                        if (!context.mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(error
+                                .toString()
+                                .replaceFirst('Exception: ', '')),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      } finally {
+                        if (mounted) setState(() => _isSaving = false);
+                      }
                     },
                     child: Ink(
                       padding: const EdgeInsets.all(16),
@@ -253,7 +293,7 @@ class _RegisteredCardsPageState extends State<RegisteredCardsPage> {
                 height: 56,
                 child: ElevatedButton(
                   onPressed: () {
-                    if (_selectedCardId.isNotEmpty && _cards.isNotEmpty) {
+                    if (_selectedCardId != null && _cards.isNotEmpty) {
                       Navigator.of(context).pop(_selectedCardId);
                     }
                   },

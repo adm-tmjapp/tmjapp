@@ -447,7 +447,24 @@ class _RideRequestPageState extends State<RideRequestPage>
       } else if (paymentMethod == RidePaymentMethod.cash) {
         await _controller.requestRide();
       }
-    } catch (e) {}
+      final errorMessage = _controller.state.errorMessage;
+      if (errorMessage != null && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMessage),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error.toString().replaceFirst('Exception: ', '')),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   Future<bool?> _openPixPayment() async {
