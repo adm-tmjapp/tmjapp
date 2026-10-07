@@ -22,8 +22,9 @@ class PaymentsRemoteDataSource {
   final BaseApi _baseApi;
 
   Future<List<PaymentMethodItem>> fetchSavedCards() async {
-    final response =
-        await _baseApi.get(Uri.parse('v2/passenger/payments/methods'));
+    final response = await _baseApi.get(
+      Uri.parse('v2/passenger/payments/methods?type=card&status=ACTIVE'),
+    );
 
     if (response.statusCode != 200) {
       throw Exception('Não foi possível carregar seus cartões salvos.');
