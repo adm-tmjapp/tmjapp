@@ -39,6 +39,11 @@ class AuthLocalDataSource {
     await preferences.setString(Strings.prefName, session.name);
     await preferences.setString(Strings.prefNumber, session.phone ?? '');
     await preferences.setString(Strings.prefUserId, session.userId);
+    final accountEmail = session.email?.trim().isNotEmpty == true
+        ? session.email!.trim()
+        : (identifier.contains('@') ? identifier.trim() : '');
+    await preferences.setString(Strings.prefAuthEmail, accountEmail);
+    await preferences.setBool(Strings.prefEmailVerified, session.emailVerified);
 
     if (rememberMe) {
       await preferences.setString(Strings.prefEmail, identifier);
@@ -54,6 +59,11 @@ class AuthLocalDataSource {
   Future<void> setBiometricEnabled(bool enabled) async {
     final preferences = await SharedPreferences.getInstance();
     await preferences.setBool(_biometricEnabledKey, enabled);
+  }
+
+  Future<void> markEmailVerified() async {
+    final preferences = await SharedPreferences.getInstance();
+    await preferences.setBool(Strings.prefEmailVerified, true);
   }
 
   Future<void> updateRememberedPassword(String newPassword) async {

@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:tmjapp/features/home/domain/entities/home_location.dart';
+import 'package:tmjapp/features/home/domain/entities/home_profile.dart';
 import 'package:tmjapp/features/home/domain/usecases/build_trip_preview_usecase.dart';
 import 'package:tmjapp/features/home/domain/usecases/load_home_data_usecase.dart';
 import 'package:tmjapp/features/home/presentation/controllers/home_state.dart';
@@ -18,6 +19,11 @@ class HomeController extends ChangeNotifier {
   bool _isDisposed = false;
 
   HomeState get state => _state;
+
+  void updateProfile(HomeProfile profile) {
+    _state = _state.copyWith(profile: profile);
+    _emit();
+  }
 
   @override
   void dispose() {

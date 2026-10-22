@@ -100,6 +100,16 @@ class _SignInPageState extends State<SignInPage> {
       _hasNavigated = true;
       Navigator.of(context).pushReplacementNamed(AppRoutes.dashboard);
     }
+    if (state.requiresEmailVerification &&
+        state.verificationSession != null &&
+        !_hasNavigated) {
+      _hasNavigated = true;
+      Navigator.of(context).pushNamedAndRemoveUntil(
+        AppRoutes.emailVerification,
+        (route) => false,
+        arguments: state.verificationSession,
+      );
+    }
   }
 
   Future<void> _submitSignIn() async {

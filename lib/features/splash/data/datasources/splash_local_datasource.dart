@@ -6,4 +6,9 @@ class SplashLocalDataSource {
     final preferences = await SharedPreferences.getInstance();
     return preferences.getString(Strings.prefToken);
   }
+
+  Future<bool> isEmailVerified() async {
+    final preferences = await SharedPreferences.getInstance();
+    return preferences.getBool(Strings.prefEmailVerified) ?? false;
+  }
 }

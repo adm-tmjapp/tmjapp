@@ -299,6 +299,54 @@ class Authapi {
     }
   }
 
+  Future<void> sendEmailVerificationCode() async {
+    final response = await baseApi.post(
+      Uri.parse('v2/auth/email/send-code'),
+      body: const <String, dynamic>{},
+    );
+    _ensureEmailVerificationSuccess(
+      response,
+      fallbackMessage: 'Não foi possível enviar o código de verificação.',
+    );
+  }
+
+  Future<void> verifyEmailVerificationCode(String code) async {
+    final response = await baseApi.post(
+      Uri.parse('v2/auth/email/verify'),
+      body: {'code': code.trim()},
+    );
+    _ensureEmailVerificationSuccess(
+      response,
+      fallbackMessage: 'Não foi possível confirmar o e-mail.',
+    );
+  }
+
+  void _ensureEmailVerificationSuccess(
+    Response response, {
+    required String fallbackMessage,
+  }) {
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception(_parseMessage(response) ?? fallbackMessage);
+    }
+
+    try {
+      final decoded = jsonDecode(response.body);
+      if (decoded is Map<String, dynamic>) {
+        final data = decoded['data'];
+        final nested = data is Map<String, dynamic> ? data : null;
+        if (decoded['success'] == false || nested?['success'] == false) {
+          final message = decoded['message'] ??
+              nested?['message'] ??
+              decoded['error'] ??
+              fallbackMessage;
+          throw Exception(message.toString());
+        }
+      }
+    } on FormatException {
+      // Algumas respostas de sucesso da API não têm corpo JSON.
+    }
+  }
+
   Future<ApiResponseModel<Map<String, String>?>> verifyEmail(
       int id, String email) async {
     try {

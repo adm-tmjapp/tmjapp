@@ -89,17 +89,30 @@ class SignInController extends ChangeNotifier with DisposableChangeNotifier {
     notifyListeners();
 
     try {
-      await _signInUseCase(
+      final session = await _signInUseCase(
         identifier: identifier,
         password: _state.password,
         rememberMe: _state.rememberMe,
       );
       if (isDisposed) return;
+      if (!session.emailVerified) {
+        _state = _state.copyWith(
+          isLoading: false,
+          didLogin: false,
+          requiresEmailVerification: true,
+          verificationSession: session,
+          clearError: true,
+        );
+        notifyListeners();
+        return;
+      }
       final biometricStatus = await _getBiometricStatusUseCase();
       if (isDisposed) return;
       _state = _state.copyWith(
         isLoading: false,
         didLogin: true,
+        requiresEmailVerification: false,
+        clearVerificationSession: true,
         canUseBiometrics: biometricStatus.canLogin,
         biometricLabel: biometricStatus.label,
       );
@@ -121,11 +134,24 @@ class SignInController extends ChangeNotifier with DisposableChangeNotifier {
     notifyListeners();
 
     try {
-      await _signInWithBiometricsUseCase();
+      final session = await _signInWithBiometricsUseCase();
       if (isDisposed) return;
+      if (!session.emailVerified) {
+        _state = _state.copyWith(
+          isLoading: false,
+          didLogin: false,
+          requiresEmailVerification: true,
+          verificationSession: session,
+          clearError: true,
+        );
+        notifyListeners();
+        return;
+      }
       _state = _state.copyWith(
         isLoading: false,
         didLogin: true,
+        requiresEmailVerification: false,
+        clearVerificationSession: true,
       );
     } catch (error) {
       final message = error.toString().replaceFirst('Exception: ', '');

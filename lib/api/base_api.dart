@@ -20,9 +20,28 @@ class BaseApi extends BaseClient {
   SharedPreferences? _prefs;
   String? _token;
 
+  Uri resolveUri(Uri url) {
+    if (url.hasScheme) return url;
+
+    final base = Uri.parse(baseUrl);
+    final basePath = base.path.replaceFirst(RegExp(r'/+$'), '');
+    var relativePath = url.path.replaceFirst(RegExp(r'^/+'), '');
+    if (basePath.endsWith('/api/v2') && relativePath.startsWith('v2/')) {
+      relativePath = relativePath.substring(3);
+    }
+
+    final path =
+        [basePath, relativePath].where((part) => part.isNotEmpty).join('/');
+    return base.replace(
+      path: path,
+      query: url.hasQuery ? url.query : null,
+      fragment: url.hasFragment ? url.fragment : null,
+    );
+  }
+
   @override
   Future<Response> get(Uri url, {Map<String, String>? headers}) {
-    return super.get(Uri.parse(baseUrl + url.toString()), headers: headers);
+    return super.get(resolveUri(url), headers: headers);
   }
 
   @override
@@ -30,7 +49,7 @@ class BaseApi extends BaseClient {
       {Map<String, String>? headers, Object? body, Encoding? encoding}) {
     final requestHeaders = <String, String>{...?headers};
     requestHeaders.putIfAbsent('Content-Type', () => 'application/json');
-    return super.post(Uri.parse(baseUrl + url.toString()),
+    return super.post(resolveUri(url),
         headers: requestHeaders, body: jsonEncode(body), encoding: encoding);
   }
 
@@ -40,7 +59,7 @@ class BaseApi extends BaseClient {
     final requestBody = body is Map || body is List ? jsonEncode(body) : body;
     final requestHeaders = <String, String>{...?headers};
     requestHeaders.putIfAbsent('Content-Type', () => 'application/json');
-    return super.put(Uri.parse(baseUrl + url.toString()),
+    return super.put(resolveUri(url),
         headers: requestHeaders, body: requestBody, encoding: encoding);
   }
 
@@ -50,15 +69,26 @@ class BaseApi extends BaseClient {
     final requestBody = body is Map || body is List ? jsonEncode(body) : body;
     final requestHeaders = <String, String>{...?headers};
     requestHeaders.putIfAbsent('Content-Type', () => 'application/json');
-    return super.patch(Uri.parse(baseUrl + url.toString()),
+    return super.patch(resolveUri(url),
         headers: requestHeaders, body: requestBody, encoding: encoding);
   }
 
   @override
   Future<StreamedResponse> send(BaseRequest request) async {
     await initData();
-    if (_token != null) {
-      request.headers['Authorization'] = 'Bearer $_token';
+    final existingAuthorization = request.headers['Authorization'];
+    final token = _token?.trim();
+    if ((existingAuthorization == null || existingAuthorization.isEmpty) &&
+        token != null &&
+        token.isNotEmpty) {
+      // Alguns fluxos legados podem persistir o esquema junto com o token.
+      // Evita enviar "Bearer Bearer <token>", que a API rejeita com 401.
+      final normalizedToken = token
+          .replaceFirst(RegExp(r'^Bearer\s+', caseSensitive: false), '')
+          .trim();
+      if (normalizedToken.isNotEmpty) {
+        request.headers['Authorization'] = 'Bearer $normalizedToken';
+      }
     }
     // MultipartRequest cria seu próprio Content-Type com boundary. Sobrescrevê-lo
     // com application/json torna o arquivo ilegível para o servidor.
@@ -70,8 +100,14 @@ class BaseApi extends BaseClient {
 
   Future<void> initData() async {
     _prefs = await SharedPreferences.getInstance();
-    _token = _prefs?.getString(Strings.prefToken) ??
-        _prefs?.getString('access_token') ??
-        _apiAuthToken;
+    final candidates = [
+      _prefs?.getString(Strings.prefToken),
+      _prefs?.getString('access_token'),
+      _apiAuthToken,
+    ];
+    _token = candidates
+        .whereType<String>()
+        .map((value) => value.trim())
+        .firstWhere((value) => value.isNotEmpty, orElse: () => '');
   }
 }

@@ -1,3 +1,5 @@
+import 'package:tmjapp/features/auth/domain/entities/auth_session.dart';
+
 class SignInState {
   const SignInState({
     this.identifier = '',
@@ -9,6 +11,8 @@ class SignInState {
     this.errorMessage,
     this.didLogin = false,
     this.isInitialized = false,
+    this.requiresEmailVerification = false,
+    this.verificationSession,
   });
 
   final String identifier;
@@ -20,6 +24,8 @@ class SignInState {
   final String? errorMessage;
   final bool didLogin;
   final bool isInitialized;
+  final bool requiresEmailVerification;
+  final AuthSession? verificationSession;
 
   SignInState copyWith({
     String? identifier,
@@ -32,6 +38,9 @@ class SignInState {
     bool clearError = false,
     bool? didLogin,
     bool? isInitialized,
+    bool? requiresEmailVerification,
+    AuthSession? verificationSession,
+    bool clearVerificationSession = false,
   }) {
     return SignInState(
       identifier: identifier ?? this.identifier,
@@ -43,6 +52,11 @@ class SignInState {
       errorMessage: clearError ? null : errorMessage ?? this.errorMessage,
       didLogin: didLogin ?? this.didLogin,
       isInitialized: isInitialized ?? this.isInitialized,
+      requiresEmailVerification:
+          requiresEmailVerification ?? this.requiresEmailVerification,
+      verificationSession: clearVerificationSession
+          ? null
+          : verificationSession ?? this.verificationSession,
     );
   }
 }

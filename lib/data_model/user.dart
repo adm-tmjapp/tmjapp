@@ -6,6 +6,7 @@ class User {
   String? role;
   String? password;
   String? creatAt;
+  bool? emailVerified;
 
   User({
     required this.id,
@@ -15,6 +16,7 @@ class User {
     required this.password,
     required this.role,
     required this.creatAt,
+    this.emailVerified,
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
@@ -26,6 +28,7 @@ class User {
       role: json["role"],
       password: json["password"],
       creatAt: json["creatAt"],
+      emailVerified: _parseEmailVerified(json),
     );
   }
 
@@ -38,6 +41,30 @@ class User {
       "role": role,
       "password": password,
       "creatAt": creatAt,
+      "emailVerified": emailVerified,
     };
   }
+}
+
+bool? _parseEmailVerified(Map<String, dynamic> json) {
+  final value = json['emailVerified'] ??
+      json['isEmailVerified'] ??
+      json['email_verified'] ??
+      json['is_email_verified'];
+  if (value is bool) return value;
+  if (value is num) return value != 0;
+  if (value is String) {
+    final normalized = value.trim().toLowerCase();
+    if ({'true', '1', 'yes', 'sim', 'verified', 'confirmed'}
+        .contains(normalized)) {
+      return true;
+    }
+    if ({'false', '0', 'no', 'não', 'nao', 'pending', 'unverified'}
+        .contains(normalized)) {
+      return false;
+    }
+  }
+  final verifiedAt = json['email_verified_at'] ?? json['emailVerifiedAt'];
+  if (verifiedAt is String && verifiedAt.trim().isNotEmpty) return true;
+  return null;
 }

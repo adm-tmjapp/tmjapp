@@ -81,8 +81,9 @@ class _SignUpPageState extends State<SignUpPage> {
     if (state.didSignUp && !_hasNavigated) {
       _hasNavigated = true;
       Navigator.of(context).pushNamedAndRemoveUntil(
-        AppRoutes.dashboard,
+        AppRoutes.emailVerification,
         (route) => false,
+        arguments: state.verificationSession,
       );
     }
   }

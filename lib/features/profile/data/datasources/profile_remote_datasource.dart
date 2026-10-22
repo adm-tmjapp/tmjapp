@@ -21,7 +21,9 @@ class ProfileRemoteDataSource {
         throw Exception('A imagem selecionada está vazia.');
       }
 
-      final uri = Uri.parse('${_baseApi.baseUrl}v2/passenger/profile/photo');
+      final uri = _baseApi.resolveUri(
+        Uri.parse('v2/passenger/profile/photo'),
+      );
       final request = http.MultipartRequest('POST', uri);
       final mimeType = lookupMimeType(
             imageFile.path,
@@ -47,14 +49,26 @@ class ProfileRemoteDataSource {
       final payload = response.body.trim().isEmpty
           ? const <String, dynamic>{}
           : jsonDecode(response.body) as Map<String, dynamic>;
-      final data = payload['data'] as Map<String, dynamic>?;
-      final user = (payload['user'] ?? data?['user']) as Map<String, dynamic>?;
-      final rawUrl = (payload['photoUrl'] ??
+      final data = payload['data'] is Map<String, dynamic>
+          ? payload['data'] as Map<String, dynamic>
+          : null;
+      final user = (payload['user'] ?? data?['user'] ?? data?['profile'])
+          as Map<String, dynamic>?;
+      final rawUrl = (payload['profilePhotoUrl'] ??
+              payload['profile_photo_url'] ??
+              payload['avatarUrl'] ??
+              payload['photoUrl'] ??
               payload['profilePhoto'] ??
               payload['profile_photo'] ??
+              data?['profilePhotoUrl'] ??
+              data?['profile_photo_url'] ??
+              data?['avatarUrl'] ??
               data?['photoUrl'] ??
               data?['profilePhoto'] ??
               data?['profile_photo'] ??
+              user?['profilePhotoUrl'] ??
+              user?['profile_photo_url'] ??
+              user?['avatarUrl'] ??
               user?['photoUrl'] ??
               user?['profilePhoto'] ??
               user?['profile_photo'])
@@ -75,8 +89,18 @@ class ProfileRemoteDataSource {
 
   String _absolutePhotoUrl(String value) {
     final uri = Uri.tryParse(value);
-    if (uri != null && uri.hasScheme) return value;
-    return Uri.parse(_baseApi.baseUrl).resolve(value).toString();
+    if (uri == null) {
+      throw const FormatException('A API retornou uma URL de foto inválida.');
+    }
+    if (uri.hasScheme) return uri.toString();
+
+    final apiBase = Uri.parse(_baseApi.baseUrl);
+    // As imagens normalmente são servidas na raiz do domínio, fora de /api/v2.
+    // Resolver um caminho relativo contra o baseUrl da API pode gerar
+    // /api/uploads/... ou /api/v2/uploads/... e quebrar o Image.network.
+    final origin = apiBase.replace(path: '/', query: null, fragment: null);
+    final path = value.startsWith('/') ? value : '/$value';
+    return origin.resolve(path).toString();
   }
 
   String _extractUploadError(http.Response response) {
@@ -84,12 +108,12 @@ class ProfileRemoteDataSource {
       final payload = jsonDecode(response.body) as Map<String, dynamic>;
       final message = payload['message'] ?? payload['error'];
       if (message != null && message.toString().trim().isNotEmpty) {
-        return message.toString();
+        return 'HTTP ${response.statusCode}: ${message.toString().trim()}';
       }
     } catch (_) {
       // A API pode retornar texto simples ou corpo vazio.
     }
-    return 'Erro ao atualizar foto (código ${response.statusCode}).';
+    return 'HTTP ${response.statusCode}: erro ao atualizar foto.';
   }
 
   // --- FUNÇÕES ORIGINAIS MANTIDAS ---
@@ -102,16 +126,14 @@ class ProfileRemoteDataSource {
     }
 
     final payload = jsonDecode(response.body);
-    final json = payload is Map<String, dynamic>
-        ? (payload['user'] is Map<String, dynamic> ? payload['user'] : payload)
-        : <String, dynamic>{};
+    final json = _profileJsonFromPayload(payload);
 
     return ProfileDetails(
       userId: (json['id'] ?? json['_id'] ?? userId).toString(),
       name: (json['name'] ?? '').toString(),
       email: (json['email'] ?? '').toString(),
       phone: (json['phone'] ?? '').toString(),
-      profilePhotoUrl: json['profilePhoto']?.toString(),
+      profilePhotoUrl: _profilePhotoFromJson(json),
     );
   }
 
@@ -133,16 +155,42 @@ class ProfileRemoteDataSource {
     }
 
     final payload = jsonDecode(response.body);
-    final json = payload is Map<String, dynamic>
-        ? (payload['user'] is Map<String, dynamic> ? payload['user'] : payload)
-        : <String, dynamic>{};
+    final json = _profileJsonFromPayload(payload);
 
     return ProfileDetails(
       userId: (json['id'] ?? json['_id'] ?? userId).toString(),
       name: (json['name'] ?? name).toString(),
       email: (json['email'] ?? '').toString(),
       phone: (json['phone'] ?? phone).toString(),
-      profilePhotoUrl: json['profilePhoto']?.toString(),
+      profilePhotoUrl: _profilePhotoFromJson(json),
     );
+  }
+
+  String? _profilePhotoFromJson(Map<String, dynamic> json) {
+    final value = json['profilePhotoUrl'] ??
+        json['profile_photo_url'] ??
+        json['avatarUrl'] ??
+        json['avatar'] ??
+        json['photoUrl'] ??
+        json['profilePhoto'] ??
+        json['profile_photo'] ??
+        json['photo'];
+    final photoUrl = value?.toString().trim();
+    return photoUrl == null || photoUrl.isEmpty
+        ? null
+        : _absolutePhotoUrl(photoUrl);
+  }
+
+  Map<String, dynamic> _profileJsonFromPayload(dynamic payload) {
+    if (payload is! Map<String, dynamic>) return <String, dynamic>{};
+
+    var current = payload;
+    // APIs may return the profile directly or wrap it in data/profile/user.
+    for (var depth = 0; depth < 3; depth++) {
+      final nested = current['user'] ?? current['profile'] ?? current['data'];
+      if (nested is! Map<String, dynamic>) break;
+      current = nested;
+    }
+    return current;
   }
 }

@@ -10,6 +10,7 @@ class HomeLocalDataSource {
       name: preferences.getString(Strings.prefName) ?? '',
       phone: preferences.getString(Strings.prefNumber) ?? '',
       userId: preferences.getString(Strings.prefUserId) ?? '',
+      profilePhotoUrl: preferences.getString(Strings.prefProfilePhotoUrl),
     );
   }
 }

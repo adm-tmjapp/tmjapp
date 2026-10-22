@@ -1,3 +1,5 @@
+import 'package:tmjapp/features/auth/domain/entities/auth_session.dart';
+
 class SignUpState {
   const SignUpState({
     this.fullName = '',
@@ -8,6 +10,7 @@ class SignUpState {
     this.acceptedTerms = false,
     this.isLoading = false,
     this.didSignUp = false,
+    this.verificationSession,
     this.errorMessage,
   });
 
@@ -19,6 +22,7 @@ class SignUpState {
   final bool acceptedTerms;
   final bool isLoading;
   final bool didSignUp;
+  final AuthSession? verificationSession;
   final String? errorMessage;
 
   SignUpState copyWith({
@@ -30,6 +34,7 @@ class SignUpState {
     bool? acceptedTerms,
     bool? isLoading,
     bool? didSignUp,
+    AuthSession? verificationSession,
     String? errorMessage,
     bool clearErrorMessage = false,
   }) {
@@ -42,6 +47,7 @@ class SignUpState {
       acceptedTerms: acceptedTerms ?? this.acceptedTerms,
       isLoading: isLoading ?? this.isLoading,
       didSignUp: didSignUp ?? this.didSignUp,
+      verificationSession: verificationSession ?? this.verificationSession,
       errorMessage:
           clearErrorMessage ? null : (errorMessage ?? this.errorMessage),
     );

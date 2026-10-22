@@ -3,11 +3,13 @@ class HomeProfile {
     required this.name,
     required this.phone,
     required this.userId,
+    this.profilePhotoUrl,
   });
 
   final String name;
   final String phone;
   final String userId;
+  final String? profilePhotoUrl;
 
   String get firstName {
     final trimmed = name.trim();

@@ -255,15 +255,8 @@ class _ProfilePageState extends State<ProfilePage> {
                               label: item.$1,
                               icon: item.$3,
                               onTap: () {
-                                if (item.$2 == null) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                        content: Text(
-                                            '${item.$1} entra como subfluxo.')),
-                                  );
-                                  return;
-                                }
-                                Navigator.of(context).pushNamed(item.$2!);
+                                final route = item.$2;
+                                Navigator.of(context).pushNamed(route);
                               },
                             ),
                           ),
@@ -314,7 +307,7 @@ class _ProfilePageState extends State<ProfilePage> {
                           const SizedBox(height: 16),
                           Center(
                             child: Text(
-                              'v1.5.0',
+                              'v1.0.2',
                               style: GoogleFonts.plusJakartaSans(
                                 color: const Color(0xFF98A2B3),
                                 fontSize: 12,

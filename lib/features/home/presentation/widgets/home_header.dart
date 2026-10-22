@@ -32,13 +32,22 @@ class HomeHeader extends StatelessWidget {
         CircleAvatar(
           radius: 24,
           backgroundColor: const Color(0xFFF7D7E7),
-          child: Text(
-            profile.initials,
-            style: GoogleFonts.plusJakartaSans(
-              color: const Color(0xFFC92D7A),
-              fontWeight: FontWeight.w800,
-            ),
-          ),
+          backgroundImage: (profile.profilePhotoUrl ?? '').trim().isNotEmpty
+              ? NetworkImage(profile.profilePhotoUrl!.trim())
+              : null,
+          onBackgroundImageError:
+              (profile.profilePhotoUrl ?? '').trim().isNotEmpty
+                  ? (_, __) {}
+                  : null,
+          child: (profile.profilePhotoUrl ?? '').trim().isEmpty
+              ? Text(
+                  profile.initials,
+                  style: GoogleFonts.plusJakartaSans(
+                    color: const Color(0xFFC92D7A),
+                    fontWeight: FontWeight.w800,
+                  ),
+                )
+              : null,
         ),
         const SizedBox(width: 12),
         Expanded(

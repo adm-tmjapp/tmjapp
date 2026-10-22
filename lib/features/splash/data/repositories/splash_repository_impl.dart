@@ -10,7 +10,9 @@ class SplashRepositoryImpl implements SplashRepository {
   @override
   Future<bool> hasSavedSession() async {
     final token = await _localDataSource.getSavedToken();
-    return token != null && token.trim().isNotEmpty;
+    return token != null &&
+        token.trim().isNotEmpty &&
+        await _localDataSource.isEmailVerified();
   }
 
   @override

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tmjapp/app/router/app_router.dart';
+import 'package:tmjapp/features/auth/domain/entities/auth_session.dart';
 import 'package:tmjapp/features/destination_search/domain/entities/destination_search_result.dart';
 import 'package:tmjapp/features/destination_search/presentation/pages/destination_search_page.dart';
 import 'package:tmjapp/features/favorites/presentation/add_favorite_page.dart';
@@ -9,6 +11,7 @@ import 'package:tmjapp/features/home/data/datasources/home_local_datasource.dart
 import 'package:tmjapp/features/home/data/datasources/home_remote_datasource.dart';
 import 'package:tmjapp/features/home/data/repositories/home_repository_impl.dart';
 import 'package:tmjapp/features/home/domain/entities/home_location.dart';
+import 'package:tmjapp/features/home/domain/entities/home_profile.dart';
 import 'package:tmjapp/features/home/domain/usecases/build_trip_preview_usecase.dart';
 import 'package:tmjapp/features/home/domain/usecases/load_home_data_usecase.dart';
 import 'package:tmjapp/features/home/presentation/controllers/home_controller.dart';
@@ -26,6 +29,7 @@ import 'package:tmjapp/features/profile/presentation/pages/profile_edit_page.dar
 import 'package:tmjapp/features/profile/domain/entities/profile_details.dart';
 import 'package:tmjapp/features/home/presentation/widgets/peding_payment_page.dart';
 import 'package:tmjapp/features/friend_ride/domain/entities/friend_driver.dart';
+import 'package:tmjapp/utils/strings.dart';
 
 // Constantes de cores baseadas no layout da imagem
 const Color _primaryPink = Color(0xFFC92D7A);
@@ -50,6 +54,7 @@ class _DashboardPageState extends State<DashboardPage>
   final RideBackgroundNotification _backgroundNotification =
       RideBackgroundNotification();
   RideRequestArgs? _confirmationDraft;
+  bool _isCheckingAccountAccess = true;
 
   @override
   void initState() {
@@ -66,7 +71,48 @@ class _DashboardPageState extends State<DashboardPage>
     _controller = HomeController(
       loadHomeDataUseCase: LoadHomeDataUseCase(repository),
       buildTripPreviewUseCase: BuildTripPreviewUseCase(repository),
-    )..initialize();
+    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkAccountAccess();
+    });
+  }
+
+  Future<void> _checkAccountAccess() async {
+    final preferences = await SharedPreferences.getInstance();
+    if (!mounted) return;
+
+    final isEmailVerified =
+        preferences.getBool(Strings.prefEmailVerified) == true;
+    final token = preferences.getString(Strings.prefToken);
+    final email = preferences.getString(Strings.prefAuthEmail) ?? '';
+    if (!isEmailVerified && (token == null || token.trim().isEmpty)) {
+      Navigator.of(context).pushNamedAndRemoveUntil(
+        AppRoutes.signIn,
+        (route) => false,
+      );
+      return;
+    }
+
+    if (!isEmailVerified) {
+      Navigator.of(context).pushNamedAndRemoveUntil(
+        AppRoutes.emailVerification,
+        (route) => false,
+        arguments: AuthSession(
+          token: token!,
+          userId: preferences.getString(Strings.prefUserId) ?? '',
+          name: preferences.getString(Strings.prefName) ?? '',
+          email: email,
+          phone: preferences.getString(Strings.prefNumber) ?? '',
+          emailVerified: false,
+        ),
+      );
+      return;
+    }
+
+    if (_isCheckingAccountAccess) {
+      setState(() => _isCheckingAccountAccess = false);
+    }
+    _controller.initialize();
     _loadConfirmationDraft();
   }
 
@@ -84,8 +130,7 @@ class _DashboardPageState extends State<DashboardPage>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       _backgroundNotification.cancel();
-      _controller.initialize();
-      _loadConfirmationDraft();
+      _checkAccountAccess();
     } else if ((state == AppLifecycleState.paused ||
             state == AppLifecycleState.hidden) &&
         ModalRoute.of(context)?.isCurrent == true) {
@@ -108,6 +153,41 @@ class _DashboardPageState extends State<DashboardPage>
     final draft = await _draftLocalDataSource.load();
     if (!mounted) return;
     setState(() => _confirmationDraft = draft);
+  }
+
+  Future<void> _openProfileEditor(HomeProfile profile) async {
+    final profileController = ProfileController(
+      localDataSource: ProfileLocalDataSource(),
+      remoteDataSource: ProfileRemoteDataSource(),
+    );
+    final profileInitialization = profileController.initialize();
+
+    try {
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => ChangeNotifierProvider.value(
+            value: profileController,
+            child: ProfileEditPage(
+              profile: ProfileDetails(
+                userId: profile.userId,
+                name: profile.name,
+                email: '',
+                phone: profile.phone,
+                profilePhotoUrl: profile.profilePhotoUrl,
+              ),
+            ),
+          ),
+        ),
+      );
+      await profileInitialization;
+    } finally {
+      profileController.dispose();
+    }
+
+    if (!mounted) return;
+    final updatedProfile = await HomeLocalDataSource().getProfile();
+    if (!mounted) return;
+    _controller.updateProfile(updatedProfile);
   }
 
   // --- MÉTODOS DE LÓGICA MANTIDOS INTACTOS ---
@@ -403,6 +483,14 @@ class _DashboardPageState extends State<DashboardPage>
 
   @override
   Widget build(BuildContext context) {
+    if (_isCheckingAccountAccess) {
+      return const Scaffold(
+        backgroundColor: Colors.white,
+        body: Center(
+          child: CircularProgressIndicator(color: _primaryPink),
+        ),
+      );
+    }
     final screenWidth = MediaQuery.sizeOf(context).width;
     final horizontalPadding = screenWidth < 360 ? 12.0 : 20.0;
 
@@ -514,33 +602,12 @@ class _DashboardPageState extends State<DashboardPage>
                       children: [
                         _TopHeader(
                           userName: state.profile.name,
-                          onAvatarTap: () {
-                            final profileController = ProfileController(
-                              localDataSource: ProfileLocalDataSource(),
-                              remoteDataSource: ProfileRemoteDataSource(),
-                            )..initialize();
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                    ChangeNotifierProvider.value(
-                                  value: profileController,
-                                  child: ProfileEditPage(
-                                    profile: ProfileDetails(
-                                      userId: state.profile.userId,
-                                      name: state.profile.name,
-                                      email: '',
-                                      phone: '',
-                                      profilePhotoUrl: '',
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            );
-                          },
+                          profilePhotoUrl: state.profile.profilePhotoUrl,
+                          onAvatarTap: () => _openProfileEditor(state.profile),
                           onNotificationTap: () {
                             Navigator.of(context).push(
                               MaterialPageRoute(
-                                builder: (_) => NotificationScreen(),
+                                builder: (_) => const NotificationScreen(),
                               ),
                             );
                           },
@@ -655,11 +722,13 @@ class _TopHeader extends StatelessWidget {
   final VoidCallback onNotificationTap;
   final VoidCallback onAvatarTap;
   final String userName;
+  final String? profilePhotoUrl;
 
   const _TopHeader({
     required this.onNotificationTap,
     required this.onAvatarTap,
     required this.userName,
+    required this.profilePhotoUrl,
   });
 
   String _getGreeting() {
@@ -698,8 +767,19 @@ class _TopHeader extends StatelessWidget {
                 ),
               ],
             ),
-            child: const Center(
-              child: Icon(Icons.person, color: _primaryPink, size: 28),
+            child: ClipOval(
+              child: (profilePhotoUrl ?? '').trim().isEmpty
+                  ? _avatarFallback()
+                  : Image.network(
+                      profilePhotoUrl!.trim(),
+                      width: 48,
+                      height: 48,
+                      fit: BoxFit.cover,
+                      loadingBuilder: (context, child, progress) =>
+                          progress == null ? child : _avatarFallback(),
+                      errorBuilder: (context, error, stackTrace) =>
+                          _avatarFallback(),
+                    ),
             ),
           ),
         ),
@@ -757,6 +837,15 @@ class _TopHeader extends StatelessWidget {
           ],
         ),
       ],
+    );
+  }
+
+  Widget _avatarFallback() {
+    return const ColoredBox(
+      color: Color(0xFFFDE8F1),
+      child: Center(
+        child: Icon(Icons.person, color: _primaryPink, size: 28),
+      ),
     );
   }
 }

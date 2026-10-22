@@ -40,7 +40,7 @@ class SignUpController extends ChangeNotifier with DisposableChangeNotifier {
     );
 
     try {
-      await _signUpUseCase(
+      final session = await _signUpUseCase(
         name: _state.fullName.trim(),
         email: _state.email.trim(),
         phone: _normalizedPhone,
@@ -53,6 +53,7 @@ class SignUpController extends ChangeNotifier with DisposableChangeNotifier {
         _state.copyWith(
           isLoading: false,
           didSignUp: true,
+          verificationSession: session,
           clearErrorMessage: true,
         ),
       );

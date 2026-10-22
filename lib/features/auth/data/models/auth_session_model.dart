@@ -8,6 +8,7 @@ class AuthSessionModel extends AuthSession {
     required super.name,
     required super.email,
     required super.phone,
+    super.emailVerified = false,
   });
 
   factory AuthSessionModel.fromResponse(ResponseLogin response) {
@@ -17,6 +18,7 @@ class AuthSessionModel extends AuthSession {
       name: response.user.name ?? '',
       email: response.user.email,
       phone: response.user.phone,
+      emailVerified: response.user.emailVerified ?? false,
     );
   }
 }

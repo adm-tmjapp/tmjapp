@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import 'package:tmjapp/features/auth/presentation/pages/sign_in_page.dart';
+import 'package:tmjapp/features/auth/presentation/pages/email_verification_page.dart';
+import 'package:tmjapp/features/auth/domain/entities/auth_session.dart';
 import 'package:tmjapp/features/forgot_password/presentation/pages/forgot_password_page.dart';
 import 'package:tmjapp/features/forgot_password/presentation/pages/reset_password_page.dart';
 import 'package:tmjapp/features/home/presentation/pages/dashboard_page.dart';
@@ -30,6 +32,7 @@ class AppRoutes {
   static const onboarding = '/onboarding';
   static const signIn = '/auth/sign-in';
   static const signUp = '/auth/sign-up';
+  static const emailVerification = '/auth/verify-email';
   static const forgotPassword = '/auth/forgot-password';
   static const resetPassword = '/auth/reset-password';
   static const dashboard = '/home/dashboard';
@@ -73,6 +76,18 @@ class AppRouter {
       case AppRoutes.signUp:
         return MaterialPageRoute(
           builder: (_) => const SignUpPage(),
+          settings: settings,
+        );
+      case AppRoutes.emailVerification:
+        final session = settings.arguments;
+        if (session is! AuthSession) {
+          return MaterialPageRoute(
+            builder: (_) => const SignInPage(),
+            settings: settings,
+          );
+        }
+        return MaterialPageRoute(
+          builder: (_) => EmailVerificationPage(session: session),
           settings: settings,
         );
       case AppRoutes.forgotPassword:

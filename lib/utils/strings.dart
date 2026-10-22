@@ -181,5 +181,8 @@
   static String prefEmail = 'MeuEmail';
   static String prefPassword = 'MeuPassword';
   static String prefToken = 'token';
+  static String prefAuthEmail = 'auth.email';
+  static String prefEmailVerified = 'auth.email_verified';
   static String prefUserId = 'auth.user.id';
+  static String prefProfilePhotoUrl = 'profile_photo_url';
 }

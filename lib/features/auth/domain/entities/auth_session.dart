@@ -5,6 +5,7 @@ class AuthSession {
     required this.name,
     required this.email,
     required this.phone,
+    this.emailVerified = false,
   });
 
   final String token;
@@ -12,4 +13,5 @@ class AuthSession {
   final String name;
   final String? email;
   final String? phone;
+  final bool emailVerified;
 }
