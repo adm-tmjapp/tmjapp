@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:tmjapp/app/router/app_router.dart';
+import 'package:tmjapp/class/url_launcher.dart';
 
 class SosPage extends StatelessWidget {
   const SosPage({super.key});
@@ -168,7 +169,8 @@ class SosPage extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         child: ElevatedButton(
                           onPressed: () {
-                            // TODO: implementar compartilhar localização em tempo real
+                            _showComingSoon(context,
+                                'O compartilhamento de localização será ativado quando a viagem estiver em andamento.');
                           },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFFFFF1F7),
@@ -206,27 +208,21 @@ class SosPage extends StatelessWidget {
                   iconColor: const Color(0xFF0D9488),
                   title: 'Polícia Militar',
                   subtitle: 'Ligar para 190',
-                  onTap: () {
-                    // TODO: chamar telefone 190
-                  },
+                  onTap: () => _callEmergency(context, '190'),
                 ),
                 _EmergencyChannelTile(
                   icon: Icons.medical_services_outlined,
                   iconColor: const Color(0xFFDC2626),
                   title: 'SAMU',
                   subtitle: 'Ligar para 192',
-                  onTap: () {
-                    // TODO: chamar telefone 192
-                  },
+                  onTap: () => _callEmergency(context, '192'),
                 ),
                 _EmergencyChannelTile(
                   icon: Icons.local_fire_department_rounded,
                   iconColor: const Color(0xFFF97316),
                   title: 'Bombeiros',
                   subtitle: 'Ligar para 193',
-                  onTap: () {
-                    // TODO: chamar telefone 193
-                  },
+                  onTap: () => _callEmergency(context, '193'),
                 ),
                 const SizedBox(height: 20),
                 Container(
@@ -261,7 +257,8 @@ class SosPage extends StatelessWidget {
                         width: double.infinity,
                         child: ElevatedButton(
                           onPressed: () {
-                            // TODO: implementar suporte TMJ
+                            Navigator.of(context)
+                                .pushNamed(AppRoutes.helpSupport);
                           },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.white,
@@ -293,6 +290,23 @@ class SosPage extends StatelessWidget {
       ),
       bottomNavigationBar: const SizedBox(height: 0),
     );
+  }
+
+  Future<void> _callEmergency(BuildContext context, String number) async {
+    try {
+      await UrlLauncher.url('tel:$number');
+    } catch (_) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text('Não foi possível abrir a ligação para $number.')),
+      );
+    }
+  }
+
+  void _showComingSoon(BuildContext context, String message) {
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 }
 
