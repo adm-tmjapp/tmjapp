@@ -4,6 +4,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:tmjapp/app/router/app_router.dart';
 import 'package:tmjapp/features/trip_history/domain/entities/trip_history_item.dart';
+import 'package:tmjapp/features/trip_history/presentation/services/trip_receipt_pdf_service.dart';
 
 IconData paymentIconForLabel(String paymentLabel) {
   final normalized =
@@ -55,7 +56,7 @@ Total: R\$ $price
 Código da viagem: ${item.id}''';
 }
 
-class TripDetailPage extends StatelessWidget {
+class TripDetailPage extends StatefulWidget {
   const TripDetailPage({
     super.key,
     required this.item,
@@ -63,17 +64,36 @@ class TripDetailPage extends StatelessWidget {
 
   final TripHistoryItem item;
 
+  @override
+  State<TripDetailPage> createState() => _TripDetailPageState();
+}
+
+class _TripDetailPageState extends State<TripDetailPage> {
+  final _receiptPdfService = const TripReceiptPdfService();
+  bool _isSharingReceipt = false;
+
   Future<void> _shareReceipt(BuildContext context) async {
+    if (_isSharingReceipt) return;
+    setState(() => _isSharingReceipt = true);
+
     final renderObject = context.findRenderObject();
     final box = renderObject is RenderBox ? renderObject : null;
     final origin =
         box == null ? null : box.localToGlobal(Offset.zero) & box.size;
 
     try {
+      final file = await _receiptPdfService.create(widget.item);
       await SharePlus.instance.share(
         ShareParams(
-          text: buildTripReceiptText(item),
-          subject: 'Recibo da viagem ${item.id}',
+          files: [
+            XFile(
+              file.path,
+              mimeType: 'application/pdf',
+              name: 'recibo-viagem-${widget.item.id}.pdf',
+            ),
+          ],
+          text: 'Recibo de viagem - TMJ',
+          subject: 'Recibo da viagem ${widget.item.id}',
           sharePositionOrigin: origin,
         ),
       );
@@ -84,12 +104,15 @@ class TripDetailPage extends StatelessWidget {
           content: Text('Não foi possível compartilhar o recibo.'),
         ),
       );
+    } finally {
+      if (mounted) setState(() => _isSharingReceipt = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     // Lógica para definir a cor baseada no status
+    final item = widget.item;
     final isCanceled = item.status.toLowerCase().contains('cancelad') ||
         item.status.toLowerCase().contains('cancel');
 
@@ -277,12 +300,16 @@ class TripDetailPage extends StatelessWidget {
                   Center(
                     child: Builder(
                       builder: (shareContext) => TextButton(
-                        onPressed: () => _shareReceipt(shareContext),
+                        onPressed: _isSharingReceipt
+                            ? null
+                            : () => _shareReceipt(shareContext),
                         style: TextButton.styleFrom(
                           foregroundColor: const Color(0xFF64748B),
                         ),
                         child: Text(
-                          'Compartilhar recibo',
+                          _isSharingReceipt
+                              ? 'Gerando recibo...'
+                              : 'Compartilhar recibo',
                           style: GoogleFonts.plusJakartaSans(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,

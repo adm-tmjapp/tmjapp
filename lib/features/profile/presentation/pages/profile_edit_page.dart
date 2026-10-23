@@ -65,7 +65,10 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
       if (pickedFile == null || !mounted) return;
 
       final controller = context.read<ProfileController>();
-      await controller.updatePhoto(File(pickedFile.path));
+      await controller.updatePhoto(
+        File(pickedFile.path),
+        fallbackProfile: widget.profile,
+      );
       if (!mounted) return;
 
       final message = controller.state.errorMessage;

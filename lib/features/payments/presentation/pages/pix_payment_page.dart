@@ -116,6 +116,17 @@ class _PixPaymentPageState extends State<PixPaymentPage>
       }
       return;
     }
+    if (mounted) {
+      setState(() {
+        _pixCode = null;
+        _encodedImage = null;
+        _paymentId = null;
+        _paymentStatus = null;
+        _paymentExpiresAt = null;
+        _isCreating = true;
+        _errorMessage = null;
+      });
+    }
     try {
       final response = await _api.post(
         Uri.parse('v2/passenger/rides/$id/payments/pix'),
@@ -158,9 +169,13 @@ class _PixPaymentPageState extends State<PixPaymentPage>
       unawaited(_refreshPaymentStatus());
     } catch (error) {
       if (mounted) {
+        _timer?.cancel();
         setState(() {
           _isCreating = false;
-          _errorMessage = error.toString().replaceFirst('Exception: ', '');
+          final raw = error.toString().replaceFirst('Exception: ', '');
+          _errorMessage = raw.contains('Asaas request failed')
+              ? 'Não foi possível gerar o PIX agora. Tente novamente em instantes.'
+              : raw;
         });
       }
     }
@@ -220,10 +235,7 @@ class _PixPaymentPageState extends State<PixPaymentPage>
   }
 
   void _retryCreatePayment() {
-    setState(() {
-      _isCreating = true;
-      _errorMessage = null;
-    });
+    _timer?.cancel();
     unawaited(_createPayment());
   }
 
@@ -492,7 +504,9 @@ class _PixPaymentPageState extends State<PixPaymentPage>
 
   @override
   Widget build(BuildContext context) {
-    if (widget.paymentFailed || _paymentClosed) {
+    if (widget.paymentFailed ||
+        _paymentClosed ||
+        (_errorMessage != null && !_isCreating)) {
       return _buildErrorScreen(context);
     }
 

@@ -2,7 +2,7 @@
 <resources>
     <style name="LaunchTheme" parent="@android:style/Theme.Light.NoTitleBar">
         <item name="android:windowSplashScreenBackground">@color/splash_background</item>
-        <item name="android:windowSplashScreenAnimatedIcon">@mipmap/ic_launcher_foreground_passenger</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/tmj_splash_logo</item>
         <item name="android:windowSplashScreenIconBackgroundColor">@color/splash_icon_background</item>
         <item name="android:windowLightStatusBar">true</item>
         <item name="android:statusBarColor">@color/splash_background</item>

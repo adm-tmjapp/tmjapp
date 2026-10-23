@@ -24,9 +24,10 @@ class CardFormResult {
 }
 
 class AddCardPage extends StatefulWidget {
-  const AddCardPage({super.key, this.card});
+  const AddCardPage({super.key, this.card, this.onSave});
 
   final PaymentMethodItem? card;
+  final Future<void> Function(CardFormResult result)? onSave;
 
   @override
   State<AddCardPage> createState() => _AddCardPageState();
@@ -40,6 +41,8 @@ class _AddCardPageState extends State<AddCardPage> {
   final _cvvController = TextEditingController();
 
   bool get _isEditing => widget.card != null;
+  bool _isSaving = false;
+  String? _errorMessage;
 
   @override
   void initState() {
@@ -57,18 +60,49 @@ class _AddCardPageState extends State<AddCardPage> {
     super.dispose();
   }
 
-  void _onSave() {
-    if (_formKey.currentState!.validate()) {
-      final digits = _cardNumberController.text.replaceAll(RegExp(r'\D'), '');
-      Navigator.of(context).pop(
-        CardFormResult(
-          cardNumberDigits: digits,
-          holderName: _nameController.text.trim().toUpperCase(),
-          expiry: _expiryController.text,
-          ccv: _cvvController.text,
-        ),
-      );
+  Future<void> _onSave() async {
+    if (_isSaving || !_formKey.currentState!.validate()) return;
+
+    final result = CardFormResult(
+      cardNumberDigits:
+          _cardNumberController.text.replaceAll(RegExp(r'\D'), ''),
+      holderName: _nameController.text.trim().toUpperCase(),
+      expiry: _expiryController.text,
+      ccv: _cvvController.text,
+    );
+
+    if (widget.onSave == null) {
+      Navigator.of(context).pop(result);
+      return;
     }
+
+    setState(() {
+      _isSaving = true;
+      _errorMessage = null;
+    });
+    try {
+      await widget.onSave!(result);
+      if (mounted) Navigator.of(context).pop(true);
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _isSaving = false;
+        _errorMessage = _friendlyError(error);
+      });
+    }
+  }
+
+  String _friendlyError(Object error) {
+    final message = error.toString().replaceFirst('Exception: ', '');
+    if (message.toLowerCase().contains('já está salvo') ||
+        message.toLowerCase().contains('duplicado')) {
+      return 'Este cartão já está salvo.';
+    }
+    if (message.toLowerCase().contains('dados do cartão') ||
+        message.toLowerCase().contains('inválid')) {
+      return 'Confira os dados do cartão.';
+    }
+    return 'Não foi possível salvar o cartão agora. Tente novamente.';
   }
 
   @override
@@ -218,12 +252,31 @@ class _AddCardPageState extends State<AddCardPage> {
               ),
               const SizedBox(height: 40),
 
+              if (_errorMessage != null) ...[
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFEF2F2),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    _errorMessage!,
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.plusJakartaSans(
+                      color: const Color(0xFFB91C1C),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
+
               // Botão Salvar
               SizedBox(
                 width: double.infinity,
                 height: 56,
                 child: ElevatedButton(
-                  onPressed: _onSave,
+                  onPressed: _isSaving ? null : _onSave,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _primaryPink,
                     shape: RoundedRectangleBorder(
@@ -231,14 +284,23 @@ class _AddCardPageState extends State<AddCardPage> {
                     ),
                     elevation: 0,
                   ),
-                  child: Text(
-                    _isEditing ? 'Salvar Alterações' : 'Salvar Cartão',
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                      color: Colors.white,
-                    ),
-                  ),
+                  child: _isSaving
+                      ? const SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : Text(
+                          _isEditing ? 'Salvar Alterações' : 'Salvar Cartão',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                          ),
+                        ),
                 ),
               ),
               const SizedBox(height: 16),

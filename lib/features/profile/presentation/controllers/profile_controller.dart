@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:tmjapp/core/presentation/controllers/disposable_change_notifier.dart';
 import 'package:tmjapp/features/profile/data/datasources/profile_local_datasource.dart';
 import 'package:tmjapp/features/profile/data/datasources/profile_remote_datasource.dart';
+import 'package:tmjapp/features/profile/domain/entities/profile_details.dart';
 import 'package:tmjapp/features/profile/presentation/controllers/profile_state.dart';
 
 class ProfileController extends ChangeNotifier with DisposableChangeNotifier {
@@ -116,9 +117,20 @@ class ProfileController extends ChangeNotifier with DisposableChangeNotifier {
   }
 
   // 👇 MÉTODO ADICIONADO PARA ATUALIZAR A FOTO
-  Future<void> updatePhoto(File imageFile) async {
-    final current = _state.profile;
-    if (current == null) return;
+  Future<void> updatePhoto(
+    File imageFile, {
+    ProfileDetails? fallbackProfile,
+  }) async {
+    final current = _state.profile ?? fallbackProfile;
+    if (current == null) {
+      _state = _state.copyWith(
+        isSaving: false,
+        errorMessage:
+            'Não foi possível identificar o perfil para atualizar a foto.',
+      );
+      notifyListeners();
+      return;
+    }
 
     _state = _state.copyWith(isSaving: true, clearError: true);
     notifyListeners();
@@ -141,6 +153,7 @@ class ProfileController extends ChangeNotifier with DisposableChangeNotifier {
     } catch (error) {
       _state = _state.copyWith(
         isSaving: false,
+        profile: current,
         errorMessage: error.toString().replaceFirst('Exception: ', ''),
       );
     }

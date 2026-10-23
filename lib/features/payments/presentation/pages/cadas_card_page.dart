@@ -32,7 +32,6 @@ class _RegisteredCardsPageState extends State<RegisteredCardsPage> {
 
   String? _selectedCardId;
   bool _isLoading = true;
-  bool _isSaving = false;
   String? _errorMessage;
 
   @override
@@ -208,41 +207,28 @@ class _RegisteredCardsPageState extends State<RegisteredCardsPage> {
                   InkWell(
                     borderRadius: BorderRadius.circular(16),
                     onTap: () async {
-                      if (_isSaving) return;
-                      final result =
-                          await Navigator.of(context).push<CardFormResult>(
+                      final saved = await Navigator.of(context).push<bool>(
                         MaterialPageRoute(
-                          builder: (context) => const AddCardPage(),
+                          builder: (context) => AddCardPage(
+                            onSave: (result) async {
+                              final expiryParts = result.expiry.split('/');
+                              if (expiryParts.length != 2) {
+                                throw Exception('Confira os dados do cartão.');
+                              }
+                              await _remoteDataSource.tokenizeCard(
+                                holderName: result.holderName,
+                                number: result.cardNumberDigits,
+                                expiryMonth: expiryParts[0].trim(),
+                                expiryYear: expiryParts[1].trim().length == 2
+                                    ? '20${expiryParts[1].trim()}'
+                                    : expiryParts[1].trim(),
+                                ccv: result.ccv,
+                              );
+                            },
+                          ),
                         ),
                       );
-                      if (result == null) return;
-                      final expiryParts = result.expiry.split('/');
-                      if (expiryParts.length != 2) return;
-                      setState(() => _isSaving = true);
-                      try {
-                        await _remoteDataSource.tokenizeCard(
-                          holderName: result.holderName,
-                          number: result.cardNumberDigits,
-                          expiryMonth: expiryParts[0].trim(),
-                          expiryYear: expiryParts[1].trim().length == 2
-                              ? '20${expiryParts[1].trim()}'
-                              : expiryParts[1].trim(),
-                          ccv: result.ccv,
-                        );
-                        await _loadCards();
-                      } catch (error) {
-                        if (!context.mounted) return;
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(error
-                                .toString()
-                                .replaceFirst('Exception: ', '')),
-                            backgroundColor: Colors.red,
-                          ),
-                        );
-                      } finally {
-                        if (mounted) setState(() => _isSaving = false);
-                      }
+                      if (saved == true) await _loadCards();
                     },
                     child: Ink(
                       padding: const EdgeInsets.all(16),

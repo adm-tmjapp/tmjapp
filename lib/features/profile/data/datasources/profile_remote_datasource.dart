@@ -119,10 +119,10 @@ class ProfileRemoteDataSource {
   // --- FUNÇÕES ORIGINAIS MANTIDAS ---
 
   Future<ProfileDetails> fetchProfile(String userId) async {
-    final response = await _baseApi.get(Uri.parse('users/users/$userId'));
+    final response = await _baseApi.get(Uri.parse('v2/passenger/profile'));
 
     if (response.statusCode != 200) {
-      throw Exception('Não foi possível carregar seu perfil.');
+      throw Exception(_extractProfileError(response));
     }
 
     final payload = jsonDecode(response.body);
@@ -143,7 +143,7 @@ class ProfileRemoteDataSource {
     required String phone,
   }) async {
     final response = await _baseApi.put(
-      Uri.parse('users/users/$userId'),
+      Uri.parse('v2/passenger/profile'),
       body: {
         'name': name,
         'phone': phone,
@@ -151,7 +151,7 @@ class ProfileRemoteDataSource {
     );
 
     if (response.statusCode != 200) {
-      throw Exception('Não foi possível atualizar seu perfil.');
+      throw Exception(_extractProfileError(response));
     }
 
     final payload = jsonDecode(response.body);
@@ -164,6 +164,19 @@ class ProfileRemoteDataSource {
       phone: (json['phone'] ?? phone).toString(),
       profilePhotoUrl: _profilePhotoFromJson(json),
     );
+  }
+
+  String _extractProfileError(http.Response response) {
+    try {
+      final payload = jsonDecode(response.body) as Map<String, dynamic>;
+      final message = payload['message'] ?? payload['error'];
+      if (message != null && message.toString().trim().isNotEmpty) {
+        return message.toString().trim();
+      }
+    } catch (_) {
+      // Mantém uma mensagem amigável quando a API não retorna JSON.
+    }
+    return 'Não foi possível carregar seu perfil.';
   }
 
   String? _profilePhotoFromJson(Map<String, dynamic> json) {
