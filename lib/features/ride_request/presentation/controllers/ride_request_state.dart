@@ -18,6 +18,7 @@ class RideRequestState {
     required this.isCancelling,
     required this.rideStatus,
     required this.statusUpdatedAt,
+    required this.verificationCode,
     required this.driver,
     required this.vehicle,
     required this.driverLatitude,
@@ -40,6 +41,7 @@ class RideRequestState {
       isCancelling: false,
       rideStatus: null,
       statusUpdatedAt: null,
+      verificationCode: null,
       driver: null,
       vehicle: null,
       driverLatitude: null,
@@ -61,6 +63,7 @@ class RideRequestState {
   final bool isCancelling;
   final String? rideStatus;
   final DateTime? statusUpdatedAt;
+  final String? verificationCode;
   final RideDriverSummary? driver;
   final RideVehicleSummary? vehicle;
   final double? driverLatitude;
@@ -174,6 +177,7 @@ class RideRequestState {
     bool? isCancelling,
     String? rideStatus,
     DateTime? statusUpdatedAt,
+    String? verificationCode,
     RideDriverSummary? driver,
     RideVehicleSummary? vehicle,
     double? driverLatitude,
@@ -205,6 +209,7 @@ class RideRequestState {
       statusUpdatedAt: clearStatusUpdatedAt
           ? null
           : (statusUpdatedAt ?? this.statusUpdatedAt),
+      verificationCode: verificationCode ?? this.verificationCode,
       driver: clearDriver ? null : (driver ?? this.driver),
       vehicle: clearVehicle ? null : (vehicle ?? this.vehicle),
       driverLatitude:

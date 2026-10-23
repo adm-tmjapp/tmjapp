@@ -9,6 +9,7 @@ class RideDriverAssignedSheet extends StatelessWidget {
     required this.driverRating,
     required this.vehiclePlate,
     required this.vehicleSummary,
+    this.verificationCode,
     required this.onCall,
     required this.onChat,
     required this.onShare,
@@ -27,6 +28,7 @@ class RideDriverAssignedSheet extends StatelessWidget {
   final double? driverRating;
   final String? vehiclePlate;
   final String? vehicleSummary;
+  final String? verificationCode;
   final VoidCallback onCall;
   final VoidCallback onChat;
   final VoidCallback onShare;
@@ -120,6 +122,26 @@ class RideDriverAssignedSheet extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 24),
+            if ((verificationCode ?? '').trim().isNotEmpty) ...[
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(14),
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF0FDF4),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFF86EFAC)),
+                ),
+                child: Text(
+                  'Código de embarque: ${verificationCode!.trim()}\nInforme este código ao motorista.',
+                  style: GoogleFonts.plusJakartaSans(
+                    color: const Color(0xFF166534),
+                    fontWeight: FontWeight.w700,
+                    height: 1.35,
+                  ),
+                ),
+              ),
+            ],
             // Informações do Motorista e Veículo
             Row(
               children: [
@@ -167,7 +189,7 @@ class RideDriverAssignedSheet extends StatelessWidget {
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            driverRating?.toStringAsFixed(1) ?? '4.9',
+                            driverRating?.toStringAsFixed(1) ?? '--',
                             style: GoogleFonts.plusJakartaSans(
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
@@ -180,7 +202,7 @@ class RideDriverAssignedSheet extends StatelessWidget {
                           const SizedBox(width: 6),
                           Expanded(
                             child: Text(
-                              '1.240 viagens',
+                              'Motorista verificado',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: GoogleFonts.plusJakartaSans(

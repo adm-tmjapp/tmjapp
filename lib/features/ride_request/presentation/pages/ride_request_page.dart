@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:tmjapp/app/router/app_router.dart';
 import 'package:tmjapp/features/destination_search/domain/entities/route_location.dart';
 import 'package:tmjapp/features/destination_search/presentation/pages/location_picker_page.dart';
@@ -574,12 +575,25 @@ class _RideRequestPageState extends State<RideRequestPage>
     );
   }
 
-  Future<void> _openNavigationToDriver() async {
-    final state = _controller.state;
-    if (!state.hasDriverLocation) return;
-    final uri = Uri.parse(
-        'https://www.google.com/maps/dir/?api=1&destination=${state.driverLatitude},${state.driverLongitude}');
-    await launchUrl(uri);
+  Future<void> _shareRide() async {
+    final rideId = _controller.state.rideId;
+    if (rideId == null || rideId.trim().isEmpty) return;
+
+    try {
+      await SharePlus.instance.share(
+        ShareParams(
+          subject: 'Minha viagem TMJ',
+          text:
+              'Estou em uma viagem pelo TMJ.\n\nOrigem: ${_origin.title}\nDestino: ${_destination.title}\nCódigo da viagem: $rideId\n\nAcompanhe pelo aplicativo TMJ.',
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Não foi possível compartilhar a viagem.')),
+      );
+    }
   }
 
   bool _isDriverArrived(RideRequestState state) {
@@ -1214,9 +1228,10 @@ class _RideRequestPageState extends State<RideRequestPage>
                               driverRating: state.driver?.rating,
                               vehiclePlate: state.vehicle?.licensePlate,
                               vehicleSummary: state.vehicleDisplayName,
+                              verificationCode: state.verificationCode,
                               onCall: _callDriver,
                               onChat: _openDriverChat,
-                              onShare: _openNavigationToDriver,
+                              onShare: _shareRide,
                               onCancel: _handleCancelRide,
                               canCancel: state.canCancel,
                               driverArrived: isDriverArrived,
@@ -1232,9 +1247,10 @@ class _RideRequestPageState extends State<RideRequestPage>
                                   driverRating: state.driver?.rating,
                                   vehiclePlate: state.vehicle?.licensePlate,
                                   vehicleSummary: state.vehicleDisplayName,
+                                  verificationCode: state.verificationCode,
                                   onCall: _callDriver,
                                   onChat: _openDriverChat,
-                                  onShare: _openNavigationToDriver,
+                                  onShare: _shareRide,
                                   onCancel: _handleCancelRide,
                                   canCancel: state.canCancel,
                                   driverArrived: true,
@@ -1251,8 +1267,7 @@ class _RideRequestPageState extends State<RideRequestPage>
                                   vehicleSummary: state.vehicleDisplayName,
                                   onCall: _callDriver,
                                   onChat: _openDriverChat,
-                                  onShare: () =>
-                                      _showPendingActionMessage('Compartilhar'),
+                                  onShare: _shareRide,
                                 ),
                           RideStage.completed => RideFinishedSheet(
                               originTitle: _origin.title,

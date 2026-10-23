@@ -3,9 +3,11 @@ class RideStatusSnapshot {
     required this.rideId,
     required this.status,
     required this.updatedAt,
+    this.verificationCode,
   });
 
   final String rideId;
   final String status;
   final DateTime? updatedAt;
+  final String? verificationCode;
 }

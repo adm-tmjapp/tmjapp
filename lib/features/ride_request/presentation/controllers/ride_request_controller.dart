@@ -269,6 +269,7 @@ class RideRequestController extends ChangeNotifier
         stage: nextStage,
         rideStatus: snapshot.status,
         statusUpdatedAt: snapshot.updatedAt,
+        verificationCode: snapshot.verificationCode,
       );
 
       if (shouldLoadRideDetails) {

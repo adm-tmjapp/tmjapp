@@ -182,6 +182,7 @@ class RideRequestRemoteDataSource {
       rideId: (responseData['rideId'] ?? rideId).toString(),
       status: (responseData['status'] ?? 'pending').toString(),
       updatedAt: _parseDate(responseData['updatedAt']?.toString()),
+      verificationCode: responseData['verificationCode']?.toString(),
     );
   }
 
