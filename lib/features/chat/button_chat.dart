@@ -1,376 +1,249 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
-
-void main() {
-  runApp(const TmjApp());
-}
-
-class TmjApp extends StatelessWidget {
-  const TmjApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'tmj',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        primaryColor: const Color(0xFFC82A75),
-        scaffoldBackgroundColor: Colors.white,
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Colors.white,
-          elevation: 0,
-          centerTitle: true,
-          iconTheme: IconThemeData(color: Color(0xFFC82A75)),
-          titleTextStyle: TextStyle(
-            color: Color(0xFF1E212B),
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ),
-      home: const ChatScreen(),
-    );
-  }
-}
-
-// --- MODELO DE DADOS ---
-
-class ChatMessage {
-  final String text;
-  final String senderName;
-  final String time;
-  final bool isMe;
-  final String avatarUrl;
-
-  ChatMessage({
-    required this.text,
-    required this.senderName,
-    required this.time,
-    required this.isMe,
-    required this.avatarUrl,
-  });
-}
-
-// --- TELA PRINCIPAL ---
+import 'package:url_launcher/url_launcher.dart';
+import 'data/ride_chat_api.dart';
 
 class ChatScreen extends StatefulWidget {
-  const ChatScreen({
-    super.key,
-    this.driverName = 'Motorista',
-    this.driverRating,
-  });
-
+  const ChatScreen(
+      {super.key,
+      this.rideId,
+      this.driverName = 'Motorista',
+      this.driverRating,
+      this.driverPhone,
+      this.driverPhotoUrl});
+  final String? rideId;
   final String driverName;
   final double? driverRating;
-
+  final String? driverPhone;
+  final String? driverPhotoUrl;
   @override
   State<ChatScreen> createState() => _ChatScreenState();
 }
 
 class _ChatScreenState extends State<ChatScreen> {
-  final Color primaryColor = const Color(0xFFC82A75);
-  final String driverAvatar =
-      'https://i.pravatar.cc/150?img=11'; // Placeholder Motorista
-
-  late List<ChatMessage> messages;
-
+  static const _primary = Color(0xFFC82A75);
+  final _api = RideChatApi();
+  final _input = TextEditingController();
+  final _scroll = ScrollController();
+  List<RideChatMessage> _messages = const [];
+  Timer? _timer;
+  bool _loading = true;
+  bool _sending = false;
+  String? _error;
   @override
   void initState() {
     super.initState();
-    messages = [];
+    _load();
+    _timer = Timer.periodic(const Duration(seconds: 4), (_) => _load());
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.of(context).maybePop(),
-        ),
-        title: const Text('Chat com Motorista'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.phone_outlined),
-            onPressed: () {}, // Ação de ligar
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          // Cabeçalho do Motorista
-          DriverHeader(
-            name: widget.driverName,
-            rating: widget.driverRating?.toStringAsFixed(1) ?? '--',
-            avatarUrl: driverAvatar,
-            primaryColor: primaryColor,
-          ),
+  void dispose() {
+    _timer?.cancel();
+    _input.dispose();
+    _scroll.dispose();
+    super.dispose();
+  }
 
-          // Área do Chat
+  Future<void> _load() async {
+    final rideId = widget.rideId;
+    if (rideId == null || rideId.trim().isEmpty) {
+      if (mounted)
+        setState(() {
+          _loading = false;
+          _error = 'Chat disponível após o motorista aceitar a corrida.';
+        });
+      return;
+    }
+    try {
+      final messages = await _api.list(rideId);
+      await _api.markRead(rideId);
+      if (!mounted) return;
+      setState(() {
+        _messages = messages;
+        _loading = false;
+        _error = null;
+      });
+      if (_scroll.hasClients) _scroll.jumpTo(_scroll.position.maxScrollExtent);
+    } catch (error) {
+      if (mounted && _messages.isEmpty)
+        setState(() {
+          _loading = false;
+          _error = error.toString().replaceFirst('Exception: ', '');
+        });
+    }
+  }
+
+  Future<void> _send([String? quick]) async {
+    final rideId = widget.rideId;
+    final text = (quick ?? _input.text).trim();
+    if (rideId == null || text.isEmpty || _sending) return;
+    setState(() => _sending = true);
+    try {
+      final message = await _api.send(rideId, text);
+      if (!mounted) return;
+      setState(() {
+        _messages = [..._messages, message];
+        _input.clear();
+      });
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_scroll.hasClients)
+          _scroll.jumpTo(_scroll.position.maxScrollExtent);
+      });
+    } catch (error) {
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(error.toString().replaceFirst('Exception: ', ''))));
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
+  }
+
+  Future<void> _call() async {
+    final phone = widget.driverPhone?.trim();
+    if (phone == null || phone.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Telefone do motorista indisponível.')));
+      return;
+    }
+    await launchUrl(Uri(scheme: 'tel', path: phone));
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+        appBar: AppBar(title: const Text('Chat com motorista'), actions: [
+          IconButton(onPressed: _call, icon: const Icon(Icons.phone_outlined))
+        ]),
+        body: Column(children: [
+          _Header(
+              name: widget.driverName,
+              rating: widget.driverRating,
+              photoUrl: widget.driverPhotoUrl),
           Expanded(
-            child: Container(
-              color: const Color(0xFFF7F7F9), // Fundo cinza bem claro
-              child: ListView.builder(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                itemCount: messages.length,
-                itemBuilder: (context, index) {
-                  return MessageBubble(
-                    message: messages[index],
-                    primaryColor: primaryColor,
-                  );
-                },
-              ),
-            ),
-          ),
-
-          // Área de Input e Respostas Rápidas
-          ChatInputArea(primaryColor: primaryColor),
-        ],
-      ),
-    );
-  }
+              child: _loading
+                  ? const Center(
+                      child: CircularProgressIndicator(color: _primary))
+                  : _error != null && _messages.isEmpty
+                      ? Center(
+                          child: Padding(
+                              padding: const EdgeInsets.all(24),
+                              child:
+                                  Text(_error!, textAlign: TextAlign.center)))
+                      : ListView.builder(
+                          controller: _scroll,
+                          padding: const EdgeInsets.all(16),
+                          itemCount: _messages.length,
+                          itemBuilder: (_, i) =>
+                              _Bubble(message: _messages[i]))),
+          _Input(controller: _input, sending: _sending, onSend: _send),
+        ]),
+      );
 }
 
-// --- COMPONENTES (WIDGETS) ---
-
-class DriverHeader extends StatelessWidget {
+class _Header extends StatelessWidget {
+  const _Header({required this.name, this.rating, this.photoUrl});
   final String name;
-  final String rating;
-  final String avatarUrl;
-  final Color primaryColor;
-
-  const DriverHeader({
-    super.key,
-    required this.name,
-    required this.rating,
-    required this.avatarUrl,
-    required this.primaryColor,
-  });
-
+  final double? rating;
+  final String? photoUrl;
   @override
-  Widget build(BuildContext context) {
-    return Container(
+  Widget build(BuildContext context) => Container(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
       color: Colors.white,
-      padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
-      child: Row(
-        children: [
-          CircleAvatar(
-            radius: 28,
-            backgroundImage: NetworkImage(avatarUrl),
-          ),
-          const SizedBox(width: 16),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                name,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF1E212B),
-                ),
-              ),
-              const SizedBox(height: 4),
-              Row(
-                children: [
-                  Icon(Icons.star, color: primaryColor, size: 16),
-                  const SizedBox(width: 4),
-                  Text(
-                    'Motorista • $rating',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey[600],
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
+      child: Row(children: [
+        CircleAvatar(
+            radius: 25,
+            backgroundImage: (photoUrl?.isNotEmpty ?? false)
+                ? NetworkImage(photoUrl!)
+                : null,
+            child:
+                (photoUrl?.isEmpty ?? true) ? const Icon(Icons.person) : null),
+        const SizedBox(width: 14),
+        Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(name,
+              style:
+                  const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+          Text(
+              'Motorista${rating == null ? '' : ' • ${rating!.toStringAsFixed(1)} ⭐'}',
+              style: TextStyle(color: Colors.grey[600]))
+        ])
+      ]));
 }
 
-class MessageBubble extends StatelessWidget {
-  final ChatMessage message;
-  final Color primaryColor;
-
-  const MessageBubble({
-    super.key,
-    required this.message,
-    required this.primaryColor,
-  });
-
+class _Bubble extends StatelessWidget {
+  const _Bubble({required this.message});
+  final RideChatMessage message;
   @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 24),
-      child: Row(
-        mainAxisAlignment:
-            message.isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (!message.isMe) _buildAvatar(),
-          const SizedBox(width: 12),
-          Flexible(
-            child: Column(
-              crossAxisAlignment: message.isMe
-                  ? CrossAxisAlignment.end
-                  : CrossAxisAlignment.start,
-              children: [
-                // Info do Remetente (Nome • Hora)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 6, left: 4, right: 4),
-                  child: Text(
-                    '${message.senderName} • ${message.time}',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                ),
-
-                // Balão de Mensagem
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                  decoration: BoxDecoration(
-                    color: message.isMe ? primaryColor : Colors.white,
-                    borderRadius: BorderRadius.only(
-                      topLeft: const Radius.circular(20),
-                      topRight: const Radius.circular(20),
-                      bottomLeft: message.isMe
-                          ? const Radius.circular(20)
-                          : const Radius.circular(4),
-                      bottomRight: message.isMe
-                          ? const Radius.circular(4)
-                          : const Radius.circular(20),
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.03),
-                        blurRadius: 5,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Text(
-                    message.text,
-                    style: TextStyle(
-                      fontSize: 15,
-                      color:
-                          message.isMe ? Colors.white : const Color(0xFF1E212B),
-                      height: 1.3,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 12),
-          if (message.isMe) _buildAvatar(),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAvatar() {
-    return CircleAvatar(
-      radius: 16,
-      backgroundImage: NetworkImage(message.avatarUrl),
-    );
-  }
+  Widget build(BuildContext context) => Align(
+      alignment: message.isMine ? Alignment.centerRight : Alignment.centerLeft,
+      child: Container(
+          margin: const EdgeInsets.only(bottom: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+          constraints: const BoxConstraints(maxWidth: 310),
+          decoration: BoxDecoration(
+              color: message.isMine ? const Color(0xFFC82A75) : Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: const [
+                BoxShadow(color: Color(0x11000000), blurRadius: 4)
+              ]),
+          child: Text(message.content,
+              style: TextStyle(
+                  color:
+                      message.isMine ? Colors.white : const Color(0xFF1E212B),
+                  height: 1.25))));
 }
 
-class ChatInputArea extends StatelessWidget {
-  final Color primaryColor;
-
-  const ChatInputArea({super.key, required this.primaryColor});
-
+class _Input extends StatelessWidget {
+  const _Input(
+      {required this.controller, required this.sending, required this.onSend});
+  final TextEditingController controller;
+  final bool sending;
+  final Future<void> Function([String?]) onSend;
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: Colors.white,
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      child: SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Respostas Rápidas (Chips)
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
-                children: [
-                  _buildQuickReply('Estou no local'),
-                  _buildQuickReply('Onde você está?'),
-                  _buildQuickReply('Trânsito intenso'),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 12),
-
-            // Campo de Texto e Botão de Enviar
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color:
-                            const Color(0xFFF3F4F6), // Cinza bem claro do input
-                        borderRadius: BorderRadius.circular(24),
-                      ),
-                      child: const TextField(
-                        decoration: InputDecoration(
-                          hintText: 'Envie uma mensagem...',
-                          hintStyle: TextStyle(color: Colors.black54),
-                          border: InputBorder.none,
-                          contentPadding: EdgeInsets.symmetric(
-                              horizontal: 20, vertical: 14),
+    return SafeArea(
+      child: Container(
+        color: Colors.white,
+        padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: ['Estou no local', 'Onde você está?', 'Cheguei']
+                  .map((text) => Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: ActionChip(
+                          label: Text(text),
+                          onPressed: sending ? null : () => onSend(text),
                         ),
-                      ),
-                    ),
+                      ))
+                  .toList(),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Row(children: [
+            Expanded(
+              child: TextField(
+                controller: controller,
+                textInputAction: TextInputAction.send,
+                onSubmitted: (_) => onSend(),
+                decoration: const InputDecoration(
+                  hintText: 'Digite uma mensagem',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.all(Radius.circular(22)),
+                    borderSide: BorderSide.none,
                   ),
-                  const SizedBox(width: 12),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: primaryColor,
-                      shape: BoxShape.circle,
-                    ),
-                    child: IconButton(
-                      icon: const Icon(Icons.send_rounded, color: Colors.white),
-                      onPressed: () {}, // Ação de enviar
-                    ),
-                  ),
-                ],
+                  filled: true,
+                  fillColor: Color(0xFFF3F4F6),
+                  contentPadding: EdgeInsets.symmetric(horizontal: 16),
+                ),
               ),
             ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildQuickReply(String text) {
-    return Container(
-      margin: const EdgeInsets.only(right: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      decoration: BoxDecoration(
-        color: primaryColor.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(
-        text,
-        style: TextStyle(
-          color: primaryColor,
-          fontWeight: FontWeight.w600,
-          fontSize: 14,
-        ),
+            IconButton(
+              onPressed: sending ? null : () => onSend(),
+              icon: const Icon(Icons.send_rounded, color: Color(0xFFC82A75)),
+            ),
+          ]),
+        ]),
       ),
     );
   }

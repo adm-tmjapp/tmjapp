@@ -550,7 +550,13 @@ class _RideRequestPageState extends State<RideRequestPage>
   Future<void> _openDriverChat() async {
     await Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => const ChatScreen(),
+        builder: (_) => ChatScreen(
+          rideId: _controller.state.rideId,
+          driverName: _controller.state.driverDisplayName ?? 'Motorista',
+          driverRating: _controller.state.driver?.rating,
+          driverPhone: _controller.state.driver?.phoneNumber,
+          driverPhotoUrl: _controller.state.driver?.photoUrl,
+        ),
       ),
     );
   }

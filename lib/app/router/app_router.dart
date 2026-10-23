@@ -140,8 +140,11 @@ class AppRouter {
         final args = settings.arguments as Map<String, dynamic>?;
         return MaterialPageRoute(
           builder: (_) => ChatScreen(
+            rideId: args?['rideId']?.toString(),
             driverName: args?['driverName']?.toString() ?? 'Motorista',
             driverRating: (args?['driverRating'] as num?)?.toDouble(),
+            driverPhone: args?['driverPhone']?.toString(),
+            driverPhotoUrl: args?['driverPhotoUrl']?.toString(),
           ),
           settings: settings,
         );

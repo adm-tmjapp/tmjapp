@@ -433,6 +433,7 @@ class _DriverCard extends StatelessWidget {
               onPressed: () => Navigator.of(context).pushNamed(
                 AppRoutes.chat,
                 arguments: {
+                  'rideId': item.id,
                   'driverName': item.driverName,
                   'driverRating': item.rating,
                 },
