@@ -27,7 +27,7 @@ require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelpe
 flutter_ios_podfile_setup
 
 target 'Runner' do
-  use_frameworks!
+  use_frameworks! :linkage => :static
 
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
   target 'RunnerTests' do
@@ -63,6 +63,17 @@ post_install do |installer|
       flags = file.settings['COMPILER_FLAGS'].split
       flags.reject! { |flag| flag == '-GCC_WARN_INHIBIT_ALL_WARNINGS' }
       file.settings['COMPILER_FLAGS'] = flags.join(' ')
+    end
+  end
+
+  # Xcode 27 validates plugin framework modules more strictly. The Flutter
+  # Runner target must allow the legacy Firebase headers used by the pinned
+  # firebase_messaging plugin during the transition to newer Firebase pods.
+  installer.aggregate_targets.each do |aggregate_target|
+    aggregate_target.user_project.native_targets.each do |target|
+      target.build_configurations.each do |config|
+        config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
+      end
     end
   end
 end
