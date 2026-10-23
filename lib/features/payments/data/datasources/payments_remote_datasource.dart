@@ -158,7 +158,8 @@ class PaymentsRemoteDataSource {
           (ride['fare'] as num?)?.toDouble() ??
           0;
 
-      if (status == 'completed' || status == 'ongoing') {
+      if (status == 'completed' &&
+          (ride['payment_status'] ?? '').toString().toUpperCase() != 'FAILED') {
         totalSpent += amount;
       }
       if (status == 'completed') {

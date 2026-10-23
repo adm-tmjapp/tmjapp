@@ -5,6 +5,7 @@ class PixPaymentData {
     this.expiresAt,
     this.copyPasteCode,
     this.encodedImage,
+    this.grossAmount,
   });
 
   final String? paymentId;
@@ -12,6 +13,7 @@ class PixPaymentData {
   final DateTime? expiresAt;
   final String? copyPasteCode;
   final String? encodedImage;
+  final double? grossAmount;
 
   bool get isPaid => isPixPaidStatus(status);
   bool get isClosed => isPixClosedStatus(status);
@@ -70,6 +72,8 @@ class PixPaymentData {
             'encoded_image',
             'qrCodeImage',
           ]),
+      grossAmount: (root['grossAmount'] as num?)?.toDouble() ??
+          (root['gross_amount'] as num?)?.toDouble(),
     );
   }
 

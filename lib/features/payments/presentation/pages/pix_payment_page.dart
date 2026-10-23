@@ -44,6 +44,7 @@ class _PixPaymentPageState extends State<PixPaymentPage>
   bool _isCreating = true;
   bool _isRefreshing = false;
   bool _didComplete = false;
+  double _displayAmount = 0;
 
   bool get _isPaid => isPixPaidStatus(_paymentStatus);
 
@@ -62,6 +63,7 @@ class _PixPaymentPageState extends State<PixPaymentPage>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _secondsLeft = _initialSeconds;
+    _displayAmount = widget.amount;
     unawaited(_createPayment());
     // O timer só roda se não for a tela de erro
     if (!widget.paymentFailed) {
@@ -137,6 +139,7 @@ class _PixPaymentPageState extends State<PixPaymentPage>
       if (mounted) {
         setState(() {
           _paymentId = payment.paymentId;
+          _displayAmount = payment.grossAmount ?? _displayAmount;
           _paymentStatus = payment.status;
           _paymentExpiresAt = payment.expiresAt;
           if (_paymentExpiresAt != null) {
@@ -395,7 +398,7 @@ class _PixPaymentPageState extends State<PixPaymentPage>
                         Navigator.of(context).pushReplacement(
                           MaterialPageRoute(
                             builder: (_) => PixPaymentPage(
-                              amount: widget.amount,
+                              amount: _displayAmount,
                               rideArgs: widget.rideArgs,
                               rideId: widget.rideId,
                             ),
@@ -546,7 +549,7 @@ class _PixPaymentPageState extends State<PixPaymentPage>
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'R\$ ${widget.amount.toStringAsFixed(2).replaceAll('.', ',')}',
+                    'R\$ ${_displayAmount.toStringAsFixed(2).replaceAll('.', ',')}',
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 42,
                       fontWeight: FontWeight.w900,

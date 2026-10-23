@@ -75,15 +75,13 @@ class _PaymentsPageState extends State<PaymentsPage> {
                             );
 
                             // 2. Se o usuário escolheu um valor e confirmou:
-                            if (selectedAmount != null && selectedAmount > 0) {
-                              if (!context.mounted) return;
-                              await _controller.addBalance(selectedAmount);
-                              if (!context.mounted) return;
+                            if (selectedAmount != null &&
+                                selectedAmount > 0 &&
+                                context.mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
+                                const SnackBar(
                                   content: Text(
-                                      'Saldo de R\$ ${selectedAmount.toStringAsFixed(2).replaceAll('.', ',')} adicionado.'),
-                                  backgroundColor: _primaryPink,
+                                      'Recarga de saldo estará disponível em breve.'),
                                 ),
                               );
                             }
@@ -211,11 +209,13 @@ class _PaymentsPageState extends State<PaymentsPage> {
                                 icon: Icons.account_balance_wallet_rounded,
                                 iconColor: const Color(0xFF334155),
                                 iconBgColor: const Color(0xFFF1F5F9),
-                                title: 'Google Pay',
-                                subtitle: 'Configurado via dispositivo',
-                                onTap: () => _openMethodDemo(
-                                  PaymentMethodDemo.googlePay,
-                                ),
+                                title: 'Carteira TMJ Pay',
+                                subtitle: 'Recargas em implantação',
+                                onTap: () => ScaffoldMessenger.of(context)
+                                    .showSnackBar(const SnackBar(
+                                  content: Text(
+                                      'A carteira ainda não está disponível para recargas.'),
+                                )),
                               ),
                             ],
                           ),
@@ -339,7 +339,7 @@ class _TmjPayCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Saldo TMJ Pay',
+            'Saldo TMJ Pay (em implantação)',
             style: GoogleFonts.plusJakartaSans(
               color: Colors.white.withValues(alpha: 0.85),
               fontSize: 13,
@@ -383,7 +383,7 @@ class _TmjPayCard extends StatelessWidget {
               ),
               child: Center(
                 child: Text(
-                  'Adicionar Saldo',
+                  'Recargas indisponíveis no momento',
                   style: GoogleFonts.plusJakartaSans(
                     color: Colors.white,
                     fontSize: 14,
