@@ -34,6 +34,7 @@ dependencies:
   # Biblioteca correta para o Google Maps
   cloud_firestore: ^4.13.0
   firebase_core: ^2.25.4
+  firebase_messaging: ^14.7.10
   location: ^5.0.0
   geocoding: ^3.0.0
   cupertino_icons: ^1.0.8

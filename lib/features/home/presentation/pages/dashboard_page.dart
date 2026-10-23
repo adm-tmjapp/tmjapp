@@ -30,6 +30,7 @@ import 'package:tmjapp/features/profile/domain/entities/profile_details.dart';
 import 'package:tmjapp/features/home/presentation/widgets/peding_payment_page.dart';
 import 'package:tmjapp/features/friend_ride/domain/entities/friend_driver.dart';
 import 'package:tmjapp/utils/strings.dart';
+import 'package:tmjapp/core/notifications/passenger_push_service.dart';
 
 // Constantes de cores baseadas no layout da imagem
 const Color _primaryPink = Color(0xFFC92D7A);
@@ -59,6 +60,7 @@ class _DashboardPageState extends State<DashboardPage>
   @override
   void initState() {
     super.initState();
+    PassengerPushService.initialize();
     WidgetsBinding.instance.addObserver(this);
     _fromController = TextEditingController();
     _toController = TextEditingController();
