@@ -24,7 +24,6 @@ class _AddNewCardScreenState extends State<AddNewCardScreen> {
 
   @override
   void initState() {
-    // TODO: implement initState
     super.initState();
 
     selectedCard = typeList[0].toString();

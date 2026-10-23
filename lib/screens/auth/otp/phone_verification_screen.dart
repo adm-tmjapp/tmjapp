@@ -18,7 +18,6 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen> {
   String? _phoneNumber;
   @override
   void initState() {
-    // TODO: implement initState
     super.initState();
     _phoneNumber = widget.phoneNumber;
   }

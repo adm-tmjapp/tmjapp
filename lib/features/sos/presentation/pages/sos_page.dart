@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:tmjapp/app/router/app_router.dart';
 import 'package:tmjapp/class/url_launcher.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:share_plus/share_plus.dart';
 
 class SosPage extends StatelessWidget {
   const SosPage({super.key});
@@ -169,8 +171,7 @@ class SosPage extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         child: ElevatedButton(
                           onPressed: () {
-                            _showComingSoon(context,
-                                'O compartilhamento de localização será ativado quando a viagem estiver em andamento.');
+                            _shareCurrentLocation(context);
                           },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFFFFF1F7),
@@ -182,7 +183,7 @@ class SosPage extends StatelessWidget {
                                 borderRadius: BorderRadius.circular(14)),
                           ),
                           child: Text(
-                            'Compartilhar Localização em Tempo Real',
+                            'Compartilhar minha localização',
                             textAlign: TextAlign.center,
                             style: GoogleFonts.plusJakartaSans(
                               fontWeight: FontWeight.w800,
@@ -304,9 +305,33 @@ class SosPage extends StatelessWidget {
     }
   }
 
-  void _showComingSoon(BuildContext context, String message) {
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
+  Future<void> _shareCurrentLocation(BuildContext context) async {
+    try {
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        throw Exception('Permissão de localização não concedida.');
+      }
+      final position = await Geolocator.getCurrentPosition();
+      final link =
+          'https://www.google.com/maps/search/?api=1&query=${position.latitude},${position.longitude}';
+      await SharePlus.instance.share(
+        ShareParams(
+          text: 'Minha localização atual no TMJ: $link',
+          subject: 'Localização atual',
+        ),
+      );
+    } catch (error) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error.toString().replaceFirst('Exception: ', '')),
+        ),
+      );
+    }
   }
 }
 

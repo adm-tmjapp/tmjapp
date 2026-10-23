@@ -863,7 +863,6 @@ class _RequestBottomSheetState extends State<RequestBottomSheet> {
   double percentage = 0.0;
   @override
   void initState() {
-    // TODO: implement initState
     super.initState();
 
     startTimer();

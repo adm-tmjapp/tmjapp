@@ -16,7 +16,6 @@ class _SplashScreenState extends State<SplashScreen> {
   SharedPreferences? prefs;
   @override
   void initState() {
-    // TODO: implement initState
     super.initState();
     inicializeData();
     Timer(const Duration(seconds: 5), () {
