@@ -29,6 +29,7 @@ class _ChatScreenState extends State<ChatScreen> {
   Timer? _timer;
   bool _loading = true;
   bool _sending = false;
+  bool _chatClosed = false;
   String? _error;
   @override
   void initState() {
@@ -66,6 +67,18 @@ class _ChatScreenState extends State<ChatScreen> {
       });
       if (_scroll.hasClients) _scroll.jumpTo(_scroll.position.maxScrollExtent);
     } catch (error) {
+      final message = error.toString().replaceFirst('Exception: ', '');
+      if (message.contains('encerrado após o término')) {
+        _timer?.cancel();
+        if (mounted) {
+          setState(() {
+            _loading = false;
+            _error = message;
+            _chatClosed = true;
+          });
+        }
+        return;
+      }
       if (mounted && _messages.isEmpty)
         setState(() {
           _loading = false;
@@ -91,6 +104,10 @@ class _ChatScreenState extends State<ChatScreen> {
           _scroll.jumpTo(_scroll.position.maxScrollExtent);
       });
     } catch (error) {
+      if (error.toString().contains('encerrado após o término') && mounted) {
+        _timer?.cancel();
+        setState(() => _chatClosed = true);
+      }
       if (mounted)
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: Text(error.toString().replaceFirst('Exception: ', ''))));
@@ -135,7 +152,10 @@ class _ChatScreenState extends State<ChatScreen> {
                           itemCount: _messages.length,
                           itemBuilder: (_, i) =>
                               _Bubble(message: _messages[i]))),
-          _Input(controller: _input, sending: _sending, onSend: _send),
+          _Input(
+              controller: _input,
+              sending: _sending || _chatClosed,
+              onSend: _send),
         ]),
       );
 }
