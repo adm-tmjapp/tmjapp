@@ -23,7 +23,6 @@ import 'package:tmjapp/features/profile/presentation/pages/profile_edit_page.dar
 import 'package:tmjapp/features/profile/presentation/pages/saved_addresses_page.dart';
 import 'package:tmjapp/features/ride_request/domain/entities/ride_request_args.dart';
 import 'package:tmjapp/features/profile/presentation/pages/security_and_terms_page.dart';
-import 'package:tmjapp/features/profile/presentation/pages/promotions_coupons_page.dart';
 import 'package:tmjapp/features/profile/presentation/pages/legal_document_page.dart';
 import 'package:tmjapp/features/chat/button_chat.dart';
 
@@ -49,7 +48,6 @@ class AppRoutes {
   static const changePhoto = '/profile/change-photo';
   static const addFavoriteAddress = '/favorites/add-address';
   static const securityAndTerms = '/security-and-terms';
-  static const promotionsAndCoupons = '/promotions-coupons';
   static const chat = '/chat';
   static const termsOfService = '/legal/terms-of-service';
   static const privacyPolicy = '/legal/privacy-policy';
@@ -181,12 +179,6 @@ class AppRouter {
           builder: (_) => const SecurityAndTermsPage(),
           settings: settings,
         );
-      case AppRoutes.promotionsAndCoupons:
-        return MaterialPageRoute(
-          builder: (_) => const PromotionsCouponsPage(),
-          settings: settings,
-        );
-
       case AppRoutes.pixPayment:
         final args = settings.arguments;
         double amount = 0.0;

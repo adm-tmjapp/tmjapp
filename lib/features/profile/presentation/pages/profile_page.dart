@@ -152,11 +152,6 @@ class _ProfilePageState extends State<ProfilePage> {
         AppRoutes.savedAddresses,
         Icons.location_on_outlined
       ),
-      (
-        'Promoções e Cupons',
-        AppRoutes.promotionsAndCoupons,
-        Icons.local_offer_outlined
-      ),
       ('Segurança e Termos', AppRoutes.securityAndTerms, Icons.shield_outlined),
       ('Ajuda e Suporte', AppRoutes.helpSupport, Icons.help_outline_rounded),
     ];
