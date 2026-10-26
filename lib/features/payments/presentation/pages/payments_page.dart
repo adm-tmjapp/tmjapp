@@ -220,10 +220,6 @@ class _PaymentsPageState extends State<PaymentsPage> {
                             ],
                           ),
                         ),
-
-                        const SizedBox(height: 24),
-                        // Card Promocional conforme imagem
-                        const _PromoCard(),
                       ],
                     ),
                   ),
@@ -681,54 +677,6 @@ class _OtherMethodTile extends StatelessWidget {
             Icon(Icons.chevron_right_rounded, color: Colors.grey.shade400),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _PromoCard extends StatelessWidget {
-  const _PromoCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFDF2F8), // Fundo rosa claro
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFFBCFE8)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Icon(Icons.card_giftcard_rounded,
-              color: _primaryPink, size: 28),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Ganhe R\$ 10 de desconto',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                    color: _textDark,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Ao cadastrar seu primeiro cartão Mastercard.',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 13,
-                    color: _textLight,
-                    height: 1.4,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }

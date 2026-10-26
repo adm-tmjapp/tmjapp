@@ -192,23 +192,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         else ...[
                           Column(
                             children: [
-                              Container(
-                                width: 92,
-                                height: 92,
-                                decoration: const BoxDecoration(
-                                  color: Color(0xFFF1F5F9),
-                                  shape: BoxShape.circle,
-                                ),
-                                alignment: Alignment.center,
-                                child: Text(
-                                  profile.initials,
-                                  style: GoogleFonts.plusJakartaSans(
-                                    fontSize: 28,
-                                    fontWeight: FontWeight.w800,
-                                    color: const Color(0xFF667085),
-                                  ),
-                                ),
-                              ),
+                              _ProfileAvatar(profile: profile),
                               const SizedBox(height: 18),
                               Text(
                                 profile.name,
@@ -350,6 +334,49 @@ class _ProfilePageState extends State<ProfilePage> {
 }
 
 // --- CLASSES AUXILIARES (IMPORTANTES PARA NÃO DAR ERRO) ---
+
+class _ProfileAvatar extends StatelessWidget {
+  const _ProfileAvatar({required this.profile});
+
+  final ProfileDetails profile;
+
+  @override
+  Widget build(BuildContext context) {
+    final photoUrl = profile.profilePhotoUrl?.trim() ?? '';
+    return SizedBox.square(
+      dimension: 92,
+      child: ClipOval(
+        child: photoUrl.isEmpty
+            ? _fallback()
+            : Image.network(
+                photoUrl,
+                width: 92,
+                height: 92,
+                fit: BoxFit.cover,
+                loadingBuilder: (context, child, progress) =>
+                    progress == null ? child : _fallback(),
+                errorBuilder: (context, error, stackTrace) => _fallback(),
+              ),
+      ),
+    );
+  }
+
+  Widget _fallback() {
+    return ColoredBox(
+      color: const Color(0xFFF1F5F9),
+      child: Center(
+        child: Text(
+          profile.initials,
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 28,
+            fontWeight: FontWeight.w800,
+            color: const Color(0xFF667085),
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 class _ErrorState extends StatelessWidget {
   const _ErrorState({required this.message, required this.onRetry});
