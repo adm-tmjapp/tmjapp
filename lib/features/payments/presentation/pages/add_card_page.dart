@@ -171,13 +171,12 @@ class _AddCardPageState extends State<AddCardPage> {
                   _CardNumberFormatter(),
                 ],
                 validator: (value) {
-                  if (!_isEditing && (value == null || value.length < 19)) {
-                    return 'Insira um número de cartão válido';
-                  }
-                  if (_isEditing &&
-                      value != null &&
-                      value.isNotEmpty &&
-                      value.length < 19) {
+                  final digits = (value ?? '').replaceAll(RegExp(r'\D'), '');
+                  if ((!_isEditing &&
+                          !CardFormValidators.isValidNumber(digits)) ||
+                      (_isEditing &&
+                          digits.isNotEmpty &&
+                          !CardFormValidators.isValidNumber(digits))) {
                     return 'Insira um número de cartão válido';
                   }
                   return null;
@@ -216,7 +215,7 @@ class _AddCardPageState extends State<AddCardPage> {
                         _ExpiryDateFormatter(),
                       ],
                       validator: (value) {
-                        if (value == null || value.length < 5) {
+                        if (!CardFormValidators.isValidExpiry(value ?? '')) {
                           return 'Data inválida';
                         }
                         return null;
@@ -236,12 +235,12 @@ class _AddCardPageState extends State<AddCardPage> {
                       ],
                       validator: (value) {
                         if (!_isEditing &&
-                            (value == null || value.length < 3)) {
+                            !CardFormValidators.isValidCvv(value ?? '')) {
                           return 'CVV inválido';
                         }
                         if (_isEditing &&
                             _cardNumberController.text.isNotEmpty &&
-                            (value == null || value.length < 3)) {
+                            !CardFormValidators.isValidCvv(value ?? '')) {
                           return 'CVV inválido';
                         }
                         return null;
@@ -328,6 +327,42 @@ class _AddCardPageState extends State<AddCardPage> {
       ),
     );
   }
+}
+
+class CardFormValidators {
+  const CardFormValidators._();
+
+  static bool isValidNumber(String digits) {
+    if (!RegExp(r'^\d{13,19}$').hasMatch(digits) ||
+        RegExp(r'^(\d)\1+$').hasMatch(digits)) {
+      return false;
+    }
+    var sum = 0;
+    var doubleDigit = false;
+    for (var index = digits.length - 1; index >= 0; index--) {
+      var value = int.parse(digits[index]);
+      if (doubleDigit) {
+        value *= 2;
+        if (value > 9) value -= 9;
+      }
+      sum += value;
+      doubleDigit = !doubleDigit;
+    }
+    return sum % 10 == 0;
+  }
+
+  static bool isValidExpiry(String value) {
+    final match = RegExp(r'^(0[1-9]|1[0-2])/(\d{2}|\d{4})$').firstMatch(value);
+    if (match == null) return false;
+    final month = int.parse(match.group(1)!);
+    final yearText = match.group(2)!;
+    final year =
+        yearText.length == 2 ? 2000 + int.parse(yearText) : int.parse(yearText);
+    final now = DateTime.now();
+    return DateTime(year, month + 1).isAfter(DateTime(now.year, now.month));
+  }
+
+  static bool isValidCvv(String value) => RegExp(r'^\d{3,4}$').hasMatch(value);
 }
 
 // ============================================================================

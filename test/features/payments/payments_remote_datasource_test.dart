@@ -47,6 +47,36 @@ void main() {
     expect(card.label, 'Visa •••• 4242');
   });
 
+  test('aceita resposta HTTP 200 ao salvar cartão', () async {
+    final client = MockClient((_) async => http.Response(
+          jsonEncode({
+            'data': {
+              'card': {
+                'id': 'method-200',
+                'type': 'card',
+                'brand': 'visa',
+                'last4': '4242',
+                'holderName': 'MARIA SILVA',
+              },
+            },
+          }),
+          200,
+        ));
+    final dataSource = PaymentsRemoteDataSource(
+      baseApi: BaseApi(baseUrl: 'https://api.tmj.test/', client: client),
+    );
+
+    final card = await dataSource.tokenizeCard(
+      holderName: 'MARIA SILVA',
+      number: '4111111111111111',
+      expiryMonth: '12',
+      expiryYear: '2030',
+      ccv: '123',
+    );
+
+    expect(card.id, 'method-200');
+  });
+
   test('lista somente cartões ativos retornados pelo ASAAS', () async {
     final client = MockClient((_) async => http.Response(
         jsonEncode({

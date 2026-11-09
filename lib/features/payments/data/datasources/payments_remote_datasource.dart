@@ -62,12 +62,33 @@ class PaymentsRemoteDataSource {
       },
     );
 
-    if (response.statusCode != 201) {
+    if (!_isSuccess(response.statusCode)) {
       throw Exception(
-          _errorMessage(response.body, 'Não foi possível salvar o cartão.'));
+        _errorMessage(
+          response.body,
+          response.statusCode,
+          'Não foi possível salvar o cartão.',
+        ),
+      );
     }
 
-    return _mapSavedCard(jsonDecode(response.body) as Map<String, dynamic>);
+    final payload = _asMap(jsonDecode(response.body));
+    final card = _asMap(
+      payload['card'] ??
+          payload['paymentMethod'] ??
+          payload['payment_method'] ??
+          _asMap(payload['data'])['card'] ??
+          _asMap(payload['data'])['paymentMethod'] ??
+          payload['data'] ??
+          payload,
+    );
+    final savedCard = _mapSavedCard(card);
+    if (savedCard.id.isEmpty || (savedCard.last4 ?? '').isEmpty) {
+      throw Exception(
+        'O pagamento foi aceito, mas a API não retornou os dados seguros do cartão.',
+      );
+    }
+    return savedCard;
   }
 
   Future<void> payWithSavedCard({
@@ -79,10 +100,11 @@ class PaymentsRemoteDataSource {
       body: {'paymentMethodId': paymentMethodId},
     );
 
-    if (response.statusCode != 201) {
+    if (!_isSuccess(response.statusCode)) {
       throw Exception(
         _errorMessage(
           response.body,
+          response.statusCode,
           'Não foi possível processar o cartão salvo.',
         ),
       );
@@ -105,14 +127,30 @@ class PaymentsRemoteDataSource {
     );
   }
 
-  String _errorMessage(String body, String fallback) {
+  bool _isSuccess(int statusCode) => statusCode >= 200 && statusCode < 300;
+
+  Map<String, dynamic> _asMap(dynamic value) =>
+      value is Map ? Map<String, dynamic>.from(value) : const {};
+
+  String _errorMessage(String body, int statusCode, String fallback) {
     try {
       final payload = jsonDecode(body);
-      if (payload is Map<String, dynamic> && payload['message'] != null) {
-        return payload['message'].toString();
+      final map = _asMap(payload);
+      final message = map['message'] ?? map['error'] ?? map['detail'];
+      if (message != null && message.toString().trim().isNotEmpty) {
+        return message.toString();
       }
     } catch (_) {
       // Retorna a mensagem padrão quando a API não envia JSON.
+    }
+    if (statusCode == 401 || statusCode == 403) {
+      return 'Sua sessão expirou. Entre novamente para cadastrar o cartão.';
+    }
+    if (statusCode == 400 || statusCode == 422) {
+      return 'Confira os dados do cartão e tente novamente.';
+    }
+    if (statusCode >= 500) {
+      return 'O serviço de pagamentos está indisponível. Tente novamente em alguns minutos.';
     }
     return fallback;
   }
