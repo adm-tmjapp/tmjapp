@@ -363,17 +363,7 @@ class RideRequestController extends ChangeNotifier
   }
 
   String? _mapPaymentMethodLabel(String? backendValue) {
-    final normalizedValue = (backendValue ?? '').trim().toUpperCase();
-    switch (normalizedValue) {
-      case 'CARD':
-        return 'Cartao';
-      case 'PIX':
-        return 'Pix';
-      case 'CASH':
-        return 'Dinheiro';
-      default:
-        return null;
-    }
+    return RidePaymentMethod.labelFromBackend(backendValue);
   }
 
   // Adicionamos o parâmetro nomeado opcional {String? cardId}

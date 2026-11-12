@@ -10,6 +10,7 @@ import 'package:tmjapp/features/home/domain/entities/home_active_ride.dart';
 import 'package:tmjapp/features/home/domain/entities/home_driver.dart';
 import 'package:tmjapp/features/home/domain/entities/home_location.dart';
 import 'package:tmjapp/features/ride_request/domain/entities/ride_product.dart';
+import 'package:tmjapp/features/ride_request/domain/entities/ride_payment_method.dart';
 
 class HomeRemoteDataSource {
   HomeRemoteDataSource({
@@ -162,7 +163,9 @@ class HomeRemoteDataSource {
             'carPlate'
           ],
         ),
-        paymentMethodLabel: activeRide['payment_method']?.toString(),
+        paymentMethodLabel: RidePaymentMethod.labelFromBackend(
+          activeRide['payment_method']?.toString(),
+        ),
       );
     } catch (_) {
       return null;

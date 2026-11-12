@@ -119,7 +119,8 @@ class RideRequestState {
 
   String get paymentSummary {
     if ((paymentMethodLabel ?? '').trim().isNotEmpty) {
-      return paymentMethodLabel!;
+      return RidePaymentMethod.labelFromBackend(paymentMethodLabel) ??
+          paymentMethodLabel!;
     }
 
     final selectedOption = paymentOptions
