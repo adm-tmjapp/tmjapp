@@ -4,6 +4,8 @@ class ProfileDetails {
     required this.name,
     required this.email,
     required this.phone,
+    this.cpfMasked,
+    this.hasCpf = false,
     required this.profilePhotoUrl,
   });
 
@@ -11,6 +13,8 @@ class ProfileDetails {
   final String name;
   final String email;
   final String phone;
+  final String? cpfMasked;
+  final bool hasCpf;
   final String? profilePhotoUrl;
 
   String get firstName {
@@ -43,6 +47,8 @@ class ProfileDetails {
     String? name,
     String? email,
     String? phone,
+    String? cpfMasked,
+    bool? hasCpf,
     String? profilePhotoUrl,
   }) {
     return ProfileDetails(
@@ -50,6 +56,8 @@ class ProfileDetails {
       name: name ?? this.name,
       email: email ?? this.email,
       phone: phone ?? this.phone,
+      cpfMasked: cpfMasked ?? this.cpfMasked,
+      hasCpf: hasCpf ?? this.hasCpf,
       profilePhotoUrl: profilePhotoUrl ?? this.profilePhotoUrl,
     );
   }

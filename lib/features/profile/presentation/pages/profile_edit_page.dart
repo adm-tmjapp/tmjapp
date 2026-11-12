@@ -19,24 +19,28 @@ class ProfileEditPage extends StatefulWidget {
 class _ProfileEditPageState extends State<ProfileEditPage> {
   late final TextEditingController _nameController;
   late final TextEditingController _phoneController;
+  late final TextEditingController _cpfController;
 
   @override
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.profile.name);
     _phoneController = TextEditingController(text: widget.profile.phone);
+    _cpfController = TextEditingController();
   }
 
   @override
   void dispose() {
     _nameController.dispose();
     _phoneController.dispose();
+    _cpfController.dispose();
     super.dispose();
   }
 
   void _onSave() {
     final name = _nameController.text.trim();
     final phone = _phoneController.text.trim();
+    final cpf = _cpfController.text.trim();
 
     if (name.isEmpty || phone.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -44,7 +48,14 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
       );
       return;
     }
-    Navigator.of(context).pop({'name': name, 'phone': phone});
+    if (!widget.profile.hasCpf && cpf.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('CPF é necessário para liberar pagamentos.')),
+      );
+      return;
+    }
+    Navigator.of(context).pop({'name': name, 'phone': phone, 'cpf': cpf});
   }
 
   // 👇 LÓGICA CENTRALIZADA AQUI
@@ -233,6 +244,28 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
                       borderSide: BorderSide.none),
                   hintText: 'Telefone',
                   prefixText: '+55 ',
+                ),
+              ),
+              const SizedBox(height: 14),
+              Text('CPF',
+                  style:
+                      GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700)),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _cpfController,
+                keyboardType: TextInputType.number,
+                enabled: !isSaving && !widget.profile.hasCpf,
+                decoration: InputDecoration(
+                  filled: true,
+                  fillColor: widget.profile.hasCpf
+                      ? const Color(0xFFF3F4F6)
+                      : Colors.white,
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none),
+                  hintText: widget.profile.hasCpf
+                      ? 'CPF cadastrado ${widget.profile.cpfMasked ?? ''}'
+                      : 'Digite seu CPF',
                 ),
               ),
               const SizedBox(height: 14),

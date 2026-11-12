@@ -129,6 +129,7 @@ class _ProfilePageState extends State<ProfilePage> {
       await _controller.updateProfile(
         name: result['name'] ?? profile.name,
         phone: result['phone'] ?? profile.phone,
+        cpf: result['cpf'],
       );
 
       if (!mounted) return;

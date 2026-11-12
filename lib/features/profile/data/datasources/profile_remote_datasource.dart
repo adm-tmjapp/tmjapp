@@ -133,6 +133,8 @@ class ProfileRemoteDataSource {
       name: (json['name'] ?? '').toString(),
       email: (json['email'] ?? '').toString(),
       phone: (json['phone'] ?? '').toString(),
+      cpfMasked: json['cpfMasked']?.toString(),
+      hasCpf: json['hasCpf'] == true || json['cpfMasked'] != null,
       profilePhotoUrl: _profilePhotoFromJson(json),
     );
   }
@@ -141,12 +143,14 @@ class ProfileRemoteDataSource {
     required String userId,
     required String name,
     required String phone,
+    String? cpf,
   }) async {
     final response = await _baseApi.put(
       Uri.parse('v2/passenger/profile'),
       body: {
         'name': name,
         'phone': phone,
+        if (cpf != null && cpf.trim().isNotEmpty) 'cpf': cpf.trim(),
       },
     );
 
@@ -162,6 +166,8 @@ class ProfileRemoteDataSource {
       name: (json['name'] ?? name).toString(),
       email: (json['email'] ?? '').toString(),
       phone: (json['phone'] ?? phone).toString(),
+      cpfMasked: json['cpfMasked']?.toString(),
+      hasCpf: json['hasCpf'] == true || json['cpfMasked'] != null,
       profilePhotoUrl: _profilePhotoFromJson(json),
     );
   }

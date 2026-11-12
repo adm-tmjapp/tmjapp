@@ -80,6 +80,7 @@ class ProfileController extends ChangeNotifier with DisposableChangeNotifier {
   Future<void> updateProfile({
     required String name,
     required String phone,
+    String? cpf,
   }) async {
     final current = _state.profile;
     if (current == null) {
@@ -94,6 +95,7 @@ class ProfileController extends ChangeNotifier with DisposableChangeNotifier {
         userId: current.userId,
         name: name,
         phone: phone,
+        cpf: cpf,
       );
       if (isDisposed) return;
       await _localDataSource.saveBasicProfile(
