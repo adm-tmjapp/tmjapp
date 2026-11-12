@@ -5,7 +5,6 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:tmjapp/app/router/app_router.dart';
 import 'package:tmjapp/features/destination_search/domain/entities/route_location.dart';
@@ -20,6 +19,7 @@ import 'package:tmjapp/features/ride_request/data/datasources/ride_confirmation_
 import 'package:tmjapp/features/ride_request/data/repositories/ride_request_repository_impl.dart';
 
 import 'package:tmjapp/features/ride_request/domain/entities/ride_payment_method.dart';
+import 'package:tmjapp/features/ride_request/domain/services/driver_call_privacy.dart';
 import 'package:tmjapp/features/payments/presentation/pages/cadas_card_page.dart';
 
 import 'package:tmjapp/features/ride_request/domain/entities/ride_request_args.dart';
@@ -539,13 +539,12 @@ class _RideRequestPageState extends State<RideRequestPage>
 
   Future<void> _dialDriver() async {
     final phoneNumber = _controller.state.driver?.phoneNumber;
-    if (phoneNumber == null || phoneNumber.trim().isEmpty) return;
-    // Prefix to hide caller ID in Brazil. Adjust or configure per region as needed.
-    const hideCallerIdPrefix = '#31#';
-    final sanitized = phoneNumber.trim();
-    final dialNumber = '$hideCallerIdPrefix$sanitized';
-    final uri = Uri(scheme: 'tel', path: dialNumber);
-    await launchUrl(uri);
+    final launched = await DriverCallPrivacy.launch(phoneNumber);
+    if (!launched && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Telefone do motorista indisponível.')),
+      );
+    }
   }
 
   Future<void> _openDriverChat() async {

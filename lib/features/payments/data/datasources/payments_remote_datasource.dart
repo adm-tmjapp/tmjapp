@@ -31,7 +31,10 @@ class PaymentsRemoteDataSource {
     }
 
     final payload = jsonDecode(response.body);
-    final methods = payload is Map<String, dynamic> ? payload['methods'] : null;
+    if (payload is! Map<String, dynamic> || payload['methods'] is! List) {
+      throw Exception('Resposta inválida ao carregar seus cartões.');
+    }
+    final methods = payload['methods'];
 
     return (methods is List ? methods : const <dynamic>[])
         .whereType<Map<String, dynamic>>()

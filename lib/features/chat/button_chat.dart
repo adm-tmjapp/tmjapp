@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'data/ride_chat_api.dart';
+import '../ride_request/domain/services/driver_call_privacy.dart';
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen(
@@ -117,13 +117,12 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> _call() async {
-    final phone = widget.driverPhone?.trim();
-    if (phone == null || phone.isEmpty) {
+    final launched = await DriverCallPrivacy.launch(widget.driverPhone);
+    if (!mounted) return;
+    if (!launched) {
       ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Telefone do motorista indisponível.')));
-      return;
     }
-    await launchUrl(Uri(scheme: 'tel', path: phone));
   }
 
   @override

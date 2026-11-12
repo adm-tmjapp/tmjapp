@@ -110,6 +110,18 @@ void main() {
     expect(cards.single.last4, '5555');
   });
 
+  test('falha quando a API retorna formato inválido para cartões', () async {
+    final client = MockClient((_) async => http.Response('{}', 200));
+    final dataSource = PaymentsRemoteDataSource(
+      baseApi: BaseApi(baseUrl: 'https://api.tmj.test/', client: client),
+    );
+
+    expect(
+      dataSource.fetchSavedCards(),
+      throwsA(isA<Exception>()),
+    );
+  });
+
   test('processa uma corrida com cartão salvo pelo identificador seguro',
       () async {
     String? requestBody;

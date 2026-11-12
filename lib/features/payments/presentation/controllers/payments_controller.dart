@@ -51,12 +51,7 @@ class PaymentsController extends ChangeNotifier {
       }
       if (_isDisposed) return;
 
-      List<PaymentMethodItem> savedCards;
-      try {
-        savedCards = await _remoteDataSource.fetchSavedCards();
-      } catch (_) {
-        savedCards = const [];
-      }
+      final savedCards = await _remoteDataSource.fetchSavedCards();
 
       _state = _state.copyWith(
         isLoading: false,

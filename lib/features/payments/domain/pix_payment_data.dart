@@ -20,9 +20,10 @@ class PixPaymentData {
 
   factory PixPaymentData.fromJson(Map<String, dynamic> json) {
     final root = _unwrap(json);
-    final pix = _asMap(
-      root['pix'] ?? root['qrCode'] ?? root['qr_code'] ?? root['pixData'],
-    );
+    final pixValue =
+        root['pix'] ?? root['qrCode'] ?? root['qr_code'] ?? root['pixData'];
+    final pix = _asMap(pixValue);
+    final directPixCode = pixValue is String ? pixValue.trim() : null;
 
     return PixPaymentData(
       paymentId: _firstText(root, const [
@@ -54,7 +55,9 @@ class PixPaymentData {
             'code',
             'qrCode',
           ]) ??
+          directPixCode ??
           _firstText(root, const [
+            'payload',
             'pixCode',
             'pix_code',
             'copyPasteCode',
@@ -71,6 +74,7 @@ class PixPaymentData {
             'encodedImage',
             'encoded_image',
             'qrCodeImage',
+            'qr_code_image',
           ]),
       grossAmount: (root['grossAmount'] as num?)?.toDouble() ??
           (root['gross_amount'] as num?)?.toDouble(),

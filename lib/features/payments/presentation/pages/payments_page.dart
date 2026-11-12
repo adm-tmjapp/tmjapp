@@ -257,41 +257,36 @@ class _PaymentsPageState extends State<PaymentsPage> {
   }
 
   Future<void> _openCardForm(PaymentMethodItem? existingCard) async {
-    final result = await Navigator.of(context).push<CardFormResult>(
+    final saved = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
-        builder: (_) => AddCardPage(card: existingCard),
+        builder: (_) => AddCardPage(
+          card: existingCard,
+          onSave: (result) async {
+            if (existingCard != null && result.cardNumberDigits.isEmpty) {
+              throw Exception('Informe o número do cartão para substituir.');
+            }
+            final expiryParts = result.expiry.split('/');
+            if (expiryParts.length != 2) {
+              throw Exception('Confira os dados do cartão.');
+            }
+            await _controller.tokenizeCard(
+              holderName: result.holderName,
+              number: result.cardNumberDigits,
+              expiryMonth: expiryParts[0].trim(),
+              expiryYear: expiryParts[1].trim().length == 2
+                  ? '20${expiryParts[1].trim()}'
+                  : expiryParts[1].trim(),
+              ccv: result.ccv,
+            );
+          },
+        ),
       ),
     );
-    if (result == null || !mounted) return;
-
-    if (existingCard != null && result.cardNumberDigits.isEmpty) return;
-    final expiryParts = result.expiry.split('/');
-    if (expiryParts.length != 2) return;
-    try {
-      await _controller.tokenizeCard(
-        holderName: result.holderName,
-        number: result.cardNumberDigits,
-        expiryMonth: expiryParts[0].trim(),
-        expiryYear: expiryParts[1].trim().length == 2
-            ? '20${expiryParts[1].trim()}'
-            : expiryParts[1].trim(),
-        ccv: result.ccv,
-      );
-    } catch (error) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(error.toString().replaceFirst('Exception: ', '')),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
-    if (!mounted) return;
+    if (saved != true || !mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
+      const SnackBar(
         content: Text('Cartão salvo com segurança no ASAAS!'),
-        backgroundColor: const Color(0xFF16A34A),
+        backgroundColor: Color(0xFF16A34A),
       ),
     );
   }

@@ -120,7 +120,7 @@ class RideDriverSecureCallPage extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: Text(
-                'Para sua segurança, a chamada será realizada através do seu aplicativo de telefone padrão.',
+                'A chamada será encaminhada pelo aplicativo de telefone padrão, sem exibir seu número quando a operadora oferecer suporte.',
                 textAlign: TextAlign.center,
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 14,
@@ -134,7 +134,7 @@ class RideDriverSecureCallPage extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: Text(
-                'Seu número e o do motorista estão protegidos. A ligação é feita através de um canal seguro do TMJApp.',
+                'O telefone do motorista não é exibido no app. Para maior privacidade, o TMJApp solicita à operadora a ocultação do seu número.',
                 textAlign: TextAlign.center,
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 12,
@@ -200,7 +200,7 @@ class RideDriverSecureCallPage extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'Seus dados de contato nunca são compartilhados. O número exibido no identificador de chamadas será mascarado.',
+                    'Seus dados de contato não são exibidos no app. A ocultação do número depende do suporte da operadora.',
                     textAlign: TextAlign.center,
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 12,

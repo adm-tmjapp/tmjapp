@@ -8,6 +8,7 @@ import 'package:tmjapp/features/ride_request/domain/entities/ride_request_args.d
 import 'package:flutter/services.dart';
 import 'package:tmjapp/api/base_api.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 
 class PixPaymentPage extends StatefulWidget {
   final double amount;
@@ -144,6 +145,11 @@ class _PixPaymentPageState extends State<PixPaymentPage>
         );
       }
       final payment = PixPaymentData.fromJson(payload);
+      FirebaseCrashlytics.instance.log(
+        'PIX response ride=$id status=${response.statusCode} '
+        'hasPayload=${payment.copyPasteCode?.isNotEmpty == true} '
+        'hasEncodedImage=${payment.encodedImage?.isNotEmpty == true}',
+      );
       if ((payment.copyPasteCode ?? '').isEmpty) {
         throw Exception('O banco não retornou o código PIX. Tente novamente.');
       }
@@ -167,7 +173,15 @@ class _PixPaymentPageState extends State<PixPaymentPage>
       }
       if (payment.isPaid) _completePayment();
       unawaited(_refreshPaymentStatus());
-    } catch (error) {
+    } catch (error, stack) {
+      await FirebaseCrashlytics.instance.recordError(
+        error,
+        stack,
+        reason: 'Falha ao gerar PIX',
+        information: [
+          'rideId=${widget.rideId ?? widget.rideArgs?.existingRideId ?? 'unknown'}',
+        ],
+      );
       if (mounted) {
         _timer?.cancel();
         setState(() {
@@ -244,7 +258,12 @@ class _PixPaymentPageState extends State<PixPaymentPage>
     if (image == null) return _buildGeneratedQrCode();
     try {
       return Image.memory(base64Decode(image), fit: BoxFit.contain);
-    } catch (_) {
+    } catch (error, stack) {
+      FirebaseCrashlytics.instance.recordError(
+        error,
+        stack,
+        reason: 'Falha ao decodificar imagem do QR Code PIX',
+      );
       return _buildGeneratedQrCode();
     }
   }

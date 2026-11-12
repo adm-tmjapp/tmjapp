@@ -43,4 +43,20 @@ void main() {
     expect(isPixClosedStatus('expired'), isTrue);
     expect(isPixClosedStatus('cancelled'), isTrue);
   });
+
+  test('aceita payload PIX quando qrCode vem como texto', () {
+    final payment = PixPaymentData.fromJson({
+      'paymentId': 'pay-text',
+      'qrCode': '000201-pix-text',
+    });
+
+    expect(payment.copyPasteCode, '000201-pix-text');
+  });
+
+  test('normaliza imagem base64 com prefixo de data URI', () {
+    expect(
+      normalizedPixBase64('data:image/png;base64, YWJj\n'),
+      'YWJj',
+    );
+  });
 }
