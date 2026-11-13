@@ -323,8 +323,10 @@ class _SignInContent extends StatelessWidget {
           Center(
             child: TextButton.icon(
               onPressed: state.isLoading ? null : onBiometricSignIn,
-              icon: const Icon(
-                Icons.fingerprint_rounded,
+              icon: Icon(
+                state.biometricLabel.contains('Face')
+                    ? Icons.face_retouching_natural_rounded
+                    : Icons.fingerprint_rounded,
                 color: Color(0xFFC72F79),
                 size: 28,
               ),
@@ -335,6 +337,18 @@ class _SignInContent extends StatelessWidget {
                   fontWeight: FontWeight.w700,
                 ),
               ),
+            ),
+          ),
+        ],
+        if (state.biometricsSupported && !state.canUseBiometrics) ...[
+          const SizedBox(height: 12),
+          Text(
+            'Marque “Lembrar de mim” para ativar o login rápido com Face ID ou Touch ID no próximo acesso.',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 12,
+              color: const Color(0xFF6B7280),
+              height: 1.4,
             ),
           ),
         ],

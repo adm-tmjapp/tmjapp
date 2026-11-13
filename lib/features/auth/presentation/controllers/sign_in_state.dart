@@ -7,6 +7,7 @@ class SignInState {
     this.rememberMe = false,
     this.isLoading = false,
     this.canUseBiometrics = false,
+    this.biometricsSupported = false,
     this.biometricLabel = 'Entrar com biometria',
     this.errorMessage,
     this.didLogin = false,
@@ -20,6 +21,7 @@ class SignInState {
   final bool rememberMe;
   final bool isLoading;
   final bool canUseBiometrics;
+  final bool biometricsSupported;
   final String biometricLabel;
   final String? errorMessage;
   final bool didLogin;
@@ -33,6 +35,7 @@ class SignInState {
     bool? rememberMe,
     bool? isLoading,
     bool? canUseBiometrics,
+    bool? biometricsSupported,
     String? biometricLabel,
     String? errorMessage,
     bool clearError = false,
@@ -48,6 +51,7 @@ class SignInState {
       rememberMe: rememberMe ?? this.rememberMe,
       isLoading: isLoading ?? this.isLoading,
       canUseBiometrics: canUseBiometrics ?? this.canUseBiometrics,
+      biometricsSupported: biometricsSupported ?? this.biometricsSupported,
       biometricLabel: biometricLabel ?? this.biometricLabel,
       errorMessage: clearError ? null : errorMessage ?? this.errorMessage,
       didLogin: didLogin ?? this.didLogin,

@@ -8,7 +8,17 @@ class AuthBrandHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Container(
+        ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: Image.asset(
+            'assets/branding/app_icon_passenger.png',
+            width: 88,
+            height: 88,
+            fit: BoxFit.cover,
+            semanticLabel: 'Logo TMJApp passageiro',
+          ),
+        ),
+        /* Container(
           width: 80,
           height: 80,
           decoration: BoxDecoration(
@@ -37,7 +47,7 @@ class AuthBrandHeader extends StatelessWidget {
               letterSpacing: -1.2,
             ),
           ),
-        ),
+        ), */
         const SizedBox(height: 16),
         RichText(
           text: TextSpan(

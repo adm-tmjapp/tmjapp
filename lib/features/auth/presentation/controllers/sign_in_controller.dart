@@ -37,6 +37,7 @@ class SignInController extends ChangeNotifier with DisposableChangeNotifier {
       password: rememberedAuth?.password ?? '',
       rememberMe: rememberedAuth?.rememberMe ?? false,
       canUseBiometrics: biometricStatus.canLogin,
+      biometricsSupported: biometricStatus.isSupported,
       biometricLabel: biometricStatus.label,
       isInitialized: true,
       clearError: true,
@@ -114,6 +115,7 @@ class SignInController extends ChangeNotifier with DisposableChangeNotifier {
         requiresEmailVerification: false,
         clearVerificationSession: true,
         canUseBiometrics: biometricStatus.canLogin,
+        biometricsSupported: biometricStatus.isSupported,
         biometricLabel: biometricStatus.label,
       );
     } catch (error) {
