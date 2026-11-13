@@ -54,7 +54,7 @@ class BiometricLocalDataSource {
     if (biometrics.contains(BiometricType.fingerprint) ||
         biometrics.contains(BiometricType.strong) ||
         biometrics.contains(BiometricType.weak)) {
-      return 'Entrar com biometria';
+      return 'Entrar com Touch ID';
     }
     return 'Entrar com biometria';
   }

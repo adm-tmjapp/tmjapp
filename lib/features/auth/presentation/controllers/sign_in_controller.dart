@@ -4,6 +4,7 @@ import 'package:tmjapp/features/auth/domain/usecases/get_biometric_status_usecas
 import 'package:tmjapp/features/auth/domain/usecases/get_remembered_auth_usecase.dart';
 import 'package:tmjapp/features/auth/domain/usecases/sign_in_usecase.dart';
 import 'package:tmjapp/features/auth/domain/usecases/sign_in_with_biometrics_usecase.dart';
+import 'package:tmjapp/features/auth/domain/usecases/set_biometric_enabled_usecase.dart';
 
 import 'sign_in_state.dart';
 
@@ -13,15 +14,18 @@ class SignInController extends ChangeNotifier with DisposableChangeNotifier {
     required GetBiometricStatusUseCase getBiometricStatusUseCase,
     required SignInUseCase signInUseCase,
     required SignInWithBiometricsUseCase signInWithBiometricsUseCase,
+    required SetBiometricEnabledUseCase setBiometricEnabledUseCase,
   })  : _getRememberedAuthUseCase = getRememberedAuthUseCase,
         _getBiometricStatusUseCase = getBiometricStatusUseCase,
         _signInUseCase = signInUseCase,
-        _signInWithBiometricsUseCase = signInWithBiometricsUseCase;
+        _signInWithBiometricsUseCase = signInWithBiometricsUseCase,
+        _setBiometricEnabledUseCase = setBiometricEnabledUseCase;
 
   final GetRememberedAuthUseCase _getRememberedAuthUseCase;
   final GetBiometricStatusUseCase _getBiometricStatusUseCase;
   final SignInUseCase _signInUseCase;
   final SignInWithBiometricsUseCase _signInWithBiometricsUseCase;
+  final SetBiometricEnabledUseCase _setBiometricEnabledUseCase;
 
   SignInState _state = const SignInState();
   SignInState get state => _state;
@@ -161,6 +165,29 @@ class SignInController extends ChangeNotifier with DisposableChangeNotifier {
         isLoading: false,
         errorMessage:
             message == 'Autenticacao biometrica cancelada.' ? null : message,
+      );
+    }
+    notifyListeners();
+  }
+
+  Future<void> enableBiometrics() async {
+    _state = _state.copyWith(isLoading: true, clearError: true);
+    notifyListeners();
+
+    try {
+      final status = await _setBiometricEnabledUseCase(true);
+      if (isDisposed) return;
+      _state = _state.copyWith(
+        isLoading: false,
+        canUseBiometrics: status.canLogin,
+        biometricsSupported: status.isSupported,
+        biometricLabel: status.label,
+        clearError: true,
+      );
+    } catch (error) {
+      _state = _state.copyWith(
+        isLoading: false,
+        errorMessage: error.toString().replaceFirst('Exception: ', ''),
       );
     }
     notifyListeners();

@@ -6,6 +6,7 @@ import 'package:tmjapp/features/auth/domain/usecases/get_biometric_status_usecas
 import 'package:tmjapp/features/auth/domain/usecases/get_remembered_auth_usecase.dart';
 import 'package:tmjapp/features/auth/domain/usecases/sign_in_usecase.dart';
 import 'package:tmjapp/features/auth/domain/usecases/sign_in_with_biometrics_usecase.dart';
+import 'package:tmjapp/features/auth/domain/usecases/set_biometric_enabled_usecase.dart';
 import 'package:tmjapp/features/auth/presentation/controllers/sign_in_controller.dart';
 import 'package:tmjapp/features/auth/presentation/controllers/sign_in_state.dart';
 import 'package:tmjapp/features/auth/presentation/widgets/auth_brand_header.dart';
@@ -45,6 +46,7 @@ class _SignInPageState extends State<SignInPage> {
       signInWithBiometricsUseCase: SignInWithBiometricsUseCase(
         repository,
       ),
+      setBiometricEnabledUseCase: SetBiometricEnabledUseCase(repository),
     )..addListener(_onStateChanged);
 
     _controller.initialize();
@@ -143,6 +145,7 @@ class _SignInPageState extends State<SignInPage> {
                   onRememberMeChanged: _controller.toggleRememberMe,
                   onSignIn: _submitSignIn,
                   onBiometricSignIn: _controller.signInWithBiometrics,
+                  onEnableBiometrics: _controller.enableBiometrics,
                   onForgotPassword: () {
                     Navigator.of(context).pushNamed(AppRoutes.forgotPassword);
                   },
@@ -166,6 +169,7 @@ class _SignInContent extends StatelessWidget {
     required this.onRememberMeChanged,
     required this.onSignIn,
     required this.onBiometricSignIn,
+    required this.onEnableBiometrics,
     required this.onForgotPassword,
   });
 
@@ -177,6 +181,7 @@ class _SignInContent extends StatelessWidget {
   final ValueChanged<bool> onRememberMeChanged;
   final VoidCallback onSignIn;
   final VoidCallback onBiometricSignIn;
+  final VoidCallback onEnableBiometrics;
   final VoidCallback onForgotPassword;
 
   @override
@@ -318,11 +323,15 @@ class _SignInContent extends StatelessWidget {
             ),
           ),
         ),
-        if (state.canUseBiometrics) ...[
+        if (state.biometricsSupported) ...[
           const SizedBox(height: 18),
           Center(
             child: TextButton.icon(
-              onPressed: state.isLoading ? null : onBiometricSignIn,
+              onPressed: state.isLoading
+                  ? null
+                  : state.canUseBiometrics
+                      ? onBiometricSignIn
+                      : onEnableBiometrics,
               icon: Icon(
                 state.biometricLabel.contains('Face')
                     ? Icons.face_retouching_natural_rounded
@@ -331,7 +340,12 @@ class _SignInContent extends StatelessWidget {
                 size: 28,
               ),
               label: Text(
-                state.biometricLabel,
+                state.canUseBiometrics
+                    ? state.biometricLabel
+                    : state.biometricLabel.replaceFirst(
+                        'Entrar com',
+                        'Ativar',
+                      ),
                 style: GoogleFonts.plusJakartaSans(
                   color: const Color(0xFFC72F79),
                   fontWeight: FontWeight.w700,

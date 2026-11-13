@@ -8,46 +8,13 @@ class AuthBrandHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(20),
-          child: Image.asset(
-            'assets/branding/app_icon_passenger.png',
-            width: 88,
-            height: 88,
-            fit: BoxFit.cover,
-            semanticLabel: 'Logo TMJApp passageiro',
-          ),
+        Image.asset(
+          'assets/branding/app_icon_passenger.png',
+          width: 112,
+          height: 112,
+          fit: BoxFit.contain,
+          semanticLabel: 'Logo TMJApp passageiro',
         ),
-        /* Container(
-          width: 80,
-          height: 80,
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [
-                Color(0xFFC72F79),
-                Color(0xFFE04095),
-              ],
-            ),
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x33C72F79),
-                blurRadius: 18,
-                offset: Offset(0, 10),
-              ),
-            ],
-          ),
-          alignment: Alignment.center,
-          child: Text(
-            'TMJ',
-            style: GoogleFonts.plusJakartaSans(
-              color: Colors.white,
-              fontSize: 28,
-              fontWeight: FontWeight.w800,
-              letterSpacing: -1.2,
-            ),
-          ),
-        ), */
         const SizedBox(height: 16),
         RichText(
           text: TextSpan(
