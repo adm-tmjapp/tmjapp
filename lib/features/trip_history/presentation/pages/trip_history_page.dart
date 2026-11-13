@@ -388,6 +388,32 @@ class _TripHistoryTile extends StatelessWidget {
                       ],
                     ),
                   ),
+                  if (item.passengerRating != null) ...[
+                    const SizedBox(height: 5),
+                    Row(
+                      children: [
+                        Text(
+                          'Sua avaliação',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: const Color(0xFF64748B),
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        ...List.generate(
+                          5,
+                          (index) => Icon(
+                            index < item.passengerRating!
+                                ? Icons.star_rounded
+                                : Icons.star_outline_rounded,
+                            color: const Color(0xFFF59E0B),
+                            size: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),

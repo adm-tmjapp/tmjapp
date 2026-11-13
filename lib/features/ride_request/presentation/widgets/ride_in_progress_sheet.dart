@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:tmjapp/features/ride_request/presentation/widgets/driver_avatar.dart';
 
 class RideInProgressSheet extends StatelessWidget {
   const RideInProgressSheet({
@@ -7,6 +8,7 @@ class RideInProgressSheet extends StatelessWidget {
     required this.etaLabel,
     required this.driverName,
     required this.driverRating,
+    this.driverPhotoUrl,
     required this.vehiclePlate,
     required this.vehicleSummary,
     required this.onCall,
@@ -17,6 +19,7 @@ class RideInProgressSheet extends StatelessWidget {
   final String etaLabel;
   final String? driverName;
   final double? driverRating;
+  final String? driverPhotoUrl;
   final String? vehiclePlate;
   final String? vehicleSummary;
   final VoidCallback onCall;
@@ -63,19 +66,7 @@ class RideInProgressSheet extends StatelessWidget {
                 child: Stack(
                   alignment: Alignment.topCenter,
                   children: [
-                    Container(
-                      width: 60,
-                      height: 60,
-                      decoration: const BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Color(0xFF1E293B),
-                      ),
-                      child: const Icon(
-                        Icons.person_rounded,
-                        color: Colors.white,
-                        size: 36,
-                      ),
-                    ),
+                    DriverAvatar(photoUrl: driverPhotoUrl, size: 60),
                     // Nota (4.9)
                     Positioned(
                       bottom: 0,
@@ -142,7 +133,7 @@ class RideInProgressSheet extends StatelessWidget {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            '${vehicleSummary ?? 'Toyota Corolla'} • Prata',
+                            vehicleSummary ?? 'Veículo não informado',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: GoogleFonts.plusJakartaSans(
@@ -153,7 +144,7 @@ class RideInProgressSheet extends StatelessWidget {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            vehiclePlate ?? 'ABC-1234',
+                            vehiclePlate ?? '--',
                             style: GoogleFonts.plusJakartaSans(
                               fontSize: 13,
                               fontWeight: FontWeight.w600,

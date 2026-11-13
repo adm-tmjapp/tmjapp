@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:tmjapp/features/ride_request/presentation/widgets/driver_avatar.dart';
 
 class RideDriverAssignedSheet extends StatelessWidget {
   RideDriverAssignedSheet({
@@ -7,6 +8,7 @@ class RideDriverAssignedSheet extends StatelessWidget {
     required this.etaLabel,
     required this.driverName,
     required this.driverRating,
+    this.driverPhotoUrl,
     required this.vehiclePlate,
     required this.vehicleSummary,
     this.verificationCode,
@@ -26,6 +28,7 @@ class RideDriverAssignedSheet extends StatelessWidget {
   final String etaLabel;
   final String? driverName;
   final double? driverRating;
+  final String? driverPhotoUrl;
   final String? vehiclePlate;
   final String? vehicleSummary;
   final String? verificationCode;
@@ -68,8 +71,8 @@ class RideDriverAssignedSheet extends StatelessWidget {
           if (driverArrived) ...[
             _DriverArrivedCard(
               driverName: driverName ?? 'Seu motorista',
-              vehiclePlate: vehiclePlate ?? 'ABC-1234',
-              vehicleSummary: vehicleSummary ?? 'Toyota Corolla Prata',
+              vehiclePlate: vehiclePlate ?? '--',
+              vehicleSummary: vehicleSummary ?? 'Veículo não informado',
             ),
             const SizedBox(height: 20),
             _DriverArrivedMeetingPoint(
@@ -146,20 +149,10 @@ class RideDriverAssignedSheet extends StatelessWidget {
             Row(
               children: [
                 // Foto do motorista
-                Container(
-                  width: 64,
-                  height: 64,
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF0F766E), Color(0xFF155E75)],
-                    ),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: const Icon(
-                    Icons.person_rounded,
-                    color: Colors.white,
-                    size: 36,
-                  ),
+                DriverAvatar(
+                  photoUrl: driverPhotoUrl,
+                  size: 64,
+                  borderRadius: BorderRadius.circular(16),
                 ),
                 const SizedBox(width: 14),
                 // Nome e Avaliação
@@ -231,7 +224,7 @@ class RideDriverAssignedSheet extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       Text(
-                        vehiclePlate ?? 'ABC-1234',
+                        vehiclePlate ?? '--',
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 15,
                           fontWeight: FontWeight.w800,
@@ -240,7 +233,7 @@ class RideDriverAssignedSheet extends StatelessWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        vehicleSummary ?? 'Corolla - Prata',
+                        vehicleSummary ?? 'Veículo não informado',
                         textAlign: TextAlign.center,
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 12,

@@ -1,16 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:tmjapp/features/ride_request/presentation/widgets/driver_avatar.dart';
 
 class RideDriverSecureCallPage extends StatelessWidget {
   const RideDriverSecureCallPage({
     super.key,
     required this.driverName,
     this.driverRating,
+    this.driverPhotoUrl,
     required this.onStartCall,
   });
 
   final String driverName;
   final double? driverRating;
+  final String? driverPhotoUrl;
   final Future<void> Function() onStartCall;
 
   @override
@@ -51,21 +54,7 @@ class RideDriverSecureCallPage extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 24),
-            Container(
-              width: 136,
-              height: 136,
-              decoration: BoxDecoration(
-                color: const Color(0xFFF1F5F9),
-                shape: BoxShape.circle,
-              ),
-              child: const Center(
-                child: Icon(
-                  Icons.person_rounded,
-                  size: 64,
-                  color: Color(0xFF1E293B),
-                ),
-              ),
-            ),
+            DriverAvatar(photoUrl: driverPhotoUrl, size: 136),
             const SizedBox(height: 18),
             Text(
               driverName.isNotEmpty ? driverName : 'João Santos',

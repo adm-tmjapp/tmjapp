@@ -33,6 +33,7 @@ import 'package:tmjapp/features/ride_request/domain/usecases/get_ride_payment_op
 import 'package:tmjapp/features/ride_request/domain/usecases/get_ride_status_usecase.dart';
 import 'package:tmjapp/features/ride_request/domain/usecases/issue_ride_realtime_token_usecase.dart';
 import 'package:tmjapp/features/ride_request/domain/usecases/update_ride_route_usecase.dart';
+import 'package:tmjapp/features/ride_request/data/datasources/ride_rating_remote_datasource.dart';
 import 'package:tmjapp/features/ride_request/presentation/controllers/ride_request_controller.dart';
 import 'package:tmjapp/features/ride_request/presentation/controllers/ride_request_state.dart';
 import 'package:tmjapp/features/ride_request/presentation/services/ride_background_notification.dart';
@@ -568,6 +569,7 @@ class _RideRequestPageState extends State<RideRequestPage>
         builder: (_) => RideDriverSecureCallPage(
           driverName: driverName,
           driverRating: _controller.state.driver?.rating,
+          driverPhotoUrl: _controller.state.driver?.photoUrl,
           onStartCall: _dialDriver,
         ),
       ),
@@ -1225,6 +1227,7 @@ class _RideRequestPageState extends State<RideRequestPage>
                                   selectedProduct?.etaLabel ?? 'Chega em 3 min',
                               driverName: state.driverDisplayName,
                               driverRating: state.driver?.rating,
+                              driverPhotoUrl: state.driver?.photoUrl,
                               vehiclePlate: state.vehicle?.licensePlate,
                               vehicleSummary: state.vehicleDisplayName,
                               verificationCode: state.verificationCode,
@@ -1244,6 +1247,7 @@ class _RideRequestPageState extends State<RideRequestPage>
                                       'Chega em 3 min',
                                   driverName: state.driverDisplayName,
                                   driverRating: state.driver?.rating,
+                                  driverPhotoUrl: state.driver?.photoUrl,
                                   vehiclePlate: state.vehicle?.licensePlate,
                                   vehicleSummary: state.vehicleDisplayName,
                                   verificationCode: state.verificationCode,
@@ -1262,6 +1266,7 @@ class _RideRequestPageState extends State<RideRequestPage>
                                       selectedProduct?.etaLabel ?? '8 min',
                                   driverName: state.driverDisplayName,
                                   driverRating: state.driver?.rating,
+                                  driverPhotoUrl: state.driver?.photoUrl,
                                   vehiclePlate: state.vehicle?.licensePlate,
                                   vehicleSummary: state.vehicleDisplayName,
                                   onCall: _callDriver,
@@ -1272,9 +1277,19 @@ class _RideRequestPageState extends State<RideRequestPage>
                               originTitle: _origin.title,
                               destinationTitle: _destination.title,
                               driverName: state.driverDisplayName,
+                              driverPhotoUrl: state.driver?.photoUrl,
+                              vehicleSummary: state.vehicleDisplayName,
+                              vehiclePlate: state.vehicle?.licensePlate,
                               finalPrice:
                                   selectedProduct?.estimatedPrice ?? 0.0,
                               paymentMethod: state.paymentSummary,
+                              onSubmitRating: state.rideId == null
+                                  ? null
+                                  : (rating) => RideRatingRemoteDataSource()
+                                          .submitDriverRating(
+                                        rideId: state.rideId!,
+                                        rating: rating,
+                                      ),
                               onFinish: () {
                                 Navigator.of(context)
                                     .popUntil((route) => route.isFirst);

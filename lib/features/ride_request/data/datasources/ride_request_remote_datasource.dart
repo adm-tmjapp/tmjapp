@@ -360,7 +360,7 @@ class RideRequestRemoteDataSource {
     }
 
     final driver = responseData['driver'] as Map<String, dynamic>?;
-    final vehicle = responseData['vehicle'] as Map<String, dynamic>?;
+    final vehicle = _vehicleFromRide(responseData, driver);
     final fare = responseData['fare'] as Map<String, dynamic>?;
 
     return RideDetail(
@@ -373,12 +373,52 @@ class RideRequestRemoteDataSource {
               name: driver['name']?.toString(),
               rating: _parseDouble(driver['rating']),
               phoneNumber: driver['phone_number']?.toString(),
-              photoUrl: driver['photo_url']?.toString(),
+              photoUrl: _driverPhotoUrl(driver),
             ),
       vehicle: vehicle == null ? null : _mapVehicle(vehicle),
       paymentMethod: responseData['payment_method']?.toString(),
       totalAmount: _parseDouble(fare?['total_amount']),
     );
+  }
+
+  String? _driverPhotoUrl(Map<String, dynamic> driver) {
+    final profile = driver['profile'] is Map
+        ? Map<String, dynamic>.from(driver['profile'] as Map)
+        : const <String, dynamic>{};
+    final value = driver['profilePhotoUrl'] ??
+        driver['profile_photo_url'] ??
+        driver['photoUrl'] ??
+        driver['photo_url'] ??
+        driver['avatarUrl'] ??
+        driver['avatar'] ??
+        profile['profilePhotoUrl'] ??
+        profile['profile_photo_url'] ??
+        profile['photoUrl'] ??
+        profile['photo_url'];
+    final url = value?.toString().trim();
+    if (url == null || url.isEmpty) return null;
+    final parsed = Uri.tryParse(url);
+    if (parsed == null) return null;
+    if (parsed.hasScheme) return parsed.toString();
+    final apiBase = Uri.parse(_baseApi.baseUrl);
+    final origin = apiBase.replace(path: '/', query: null, fragment: null);
+    return origin.resolve(url.startsWith('/') ? url : '/$url').toString();
+  }
+
+  Map<String, dynamic>? _vehicleFromRide(
+    Map<String, dynamic> ride,
+    Map<String, dynamic>? driver,
+  ) {
+    final candidates = [
+      ride['vehicle'],
+      ride['activeVehicle'],
+      driver?['vehicle'],
+      driver?['activeVehicle'],
+    ];
+    for (final candidate in candidates) {
+      if (candidate is Map) return Map<String, dynamic>.from(candidate);
+    }
+    return null;
   }
 
   Future<RideEtaSnapshot> getRideEta(String rideId) async {
@@ -559,7 +599,7 @@ class RideRequestRemoteDataSource {
   }
 
   RideVehicleSummary _mapVehicle(Map<String, dynamic> vehicle) {
-    String? _firstOrNull(List<String> keys) {
+    String? firstOrNull(List<String> keys) {
       for (final key in keys) {
         final value = vehicle[key];
         if (value != null && value.toString().trim().isNotEmpty) {
@@ -569,23 +609,43 @@ class RideRequestRemoteDataSource {
       return null;
     }
 
+    final manufacturer = firstOrNull(
+      const ['manufacturer', 'brand', 'make', 'vehicle_manufacturer'],
+    );
+    final modelName = firstOrNull(
+      const [
+        'modelName',
+        'model_name',
+        'model',
+        'vehicle_model',
+        'car_model',
+        'name'
+      ],
+    );
+    final year = firstOrNull(const ['year', 'modelYear', 'model_year']);
+    final model = [manufacturer, modelName, year]
+        .whereType<String>()
+        .map((item) => item.trim())
+        .where((item) => item.isNotEmpty)
+        .join(' ');
+
     return RideVehicleSummary(
-      licensePlate: _firstOrNull(
+      licensePlate: firstOrNull(
         const [
           'license_plate',
           'plate',
           'licensePlate',
+          'vehiclePlate',
+          'vehicle_plate',
           'car_plate',
           'carPlate'
         ],
       ),
-      model: _firstOrNull(
-        const ['model', 'vehicle_model', 'car_model', 'name'],
-      ),
-      color: _firstOrNull(
+      model: model.isEmpty ? null : model,
+      color: firstOrNull(
         const ['color', 'vehicle_color', 'car_color'],
       ),
-      type: _firstOrNull(const ['type', 'category']),
+      type: firstOrNull(const ['type', 'category', 'vehicleType']),
     );
   }
 }

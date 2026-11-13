@@ -35,4 +35,38 @@ void main() {
       findsOneWidget,
     );
   });
+
+  testWidgets('envia a avaliação selecionada antes de concluir',
+      (tester) async {
+    tester.view
+      ..physicalSize = const Size(1080, 2400)
+      ..devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    var submittedRating = 0;
+    var finished = false;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: RideFinishedSheet(
+            originTitle: 'Origem',
+            destinationTitle: 'Destino',
+            driverName: 'Motorista TMJ',
+            finalPrice: 25,
+            paymentMethod: 'Pix',
+            onSubmitRating: (rating) async => submittedRating = rating,
+            onFinish: () => finished = true,
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byTooltip('4 estrelas'));
+    await tester.tap(find.text('CONCLUIR'));
+    await tester.pump();
+
+    expect(submittedRating, 4);
+    expect(finished, isTrue);
+  });
 }

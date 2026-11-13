@@ -20,6 +20,8 @@ class TripHistoryItem {
     required this.latitude, // <-- Adicionado
     required this.longitude, // <-- Adicionado
     this.hasDriverAccepted = false,
+    this.passengerRating,
+    this.driverPhotoUrl,
   });
 
   final String id;
@@ -42,4 +44,8 @@ class TripHistoryItem {
   final double latitude; // <-- Adicionado
   final double longitude; // <-- Adicionado
   final bool hasDriverAccepted;
+
+  /// Nota que este passageiro deu ao motorista nesta corrida.
+  final int? passengerRating;
+  final String? driverPhotoUrl;
 }

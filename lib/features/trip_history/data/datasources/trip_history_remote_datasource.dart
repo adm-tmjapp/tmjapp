@@ -29,7 +29,7 @@ class TripHistoryRemoteDataSource {
 
   TripHistoryItem _mapRideToTrip(Map<String, dynamic> json) {
     final driver = json['driver'] as Map<String, dynamic>?;
-    final vehicle = json['vehicle'] as Map<String, dynamic>?;
+    final vehicle = _vehicleFromRide(json, driver);
     final pickup = json['pickup_location'] as Map<String, dynamic>?;
     final destination = json['destination_location'] as Map<String, dynamic>?;
     final route = json['route'] as Map<String, dynamic>?;
@@ -57,7 +57,7 @@ class TripHistoryRemoteDataSource {
       id: (json['_id'] ?? json['id'] ?? '').toString(),
       title: destination?['address']?.toString() ?? 'Viagem TMJ',
       driverName: driver?['name']?.toString() ?? 'Motorista a definir',
-      vehicle: vehicle?['model']?.toString() ??
+      vehicle: _vehicleDisplayName(vehicle) ??
           product?['name']?.toString() ??
           'TMJ Ride',
       dateLabel: _formatDate(date),
@@ -73,12 +73,98 @@ class TripHistoryRemoteDataSource {
           distanceKm > 0 ? '${distanceKm.toStringAsFixed(1)} km' : '--',
       durationLabel: durationMin > 0 ? '${durationMin.round()} min' : '--',
       paymentLabel: payment,
-      plate: vehicle?['license_plate']?.toString() ?? '--',
+      plate: _vehiclePlate(vehicle) ?? '--',
       rating: (driver?['rating'] as num?)?.toDouble() ?? 5,
+      passengerRating: _parsePassengerRating(json),
+      driverPhotoUrl: _driverPhotoUrl(driver),
       latitude: (pickup?['latitude'] as num?)?.toDouble() ?? 0.0,
       longitude: (pickup?['longitude'] as num?)?.toDouble() ?? 0.0,
       hasDriverAccepted: hasDriverAccepted,
     );
+  }
+
+  int? _parsePassengerRating(Map<String, dynamic> json) {
+    final rating = json['passengerRating'] ??
+        json['passenger_rating'] ??
+        json['ratingByPassenger'] ??
+        json['rating_by_passenger'];
+    final value = rating is num ? rating.toInt() : int.tryParse('$rating');
+    return value != null && value >= 1 && value <= 5 ? value : null;
+  }
+
+  Map<String, dynamic>? _vehicleFromRide(
+    Map<String, dynamic> ride,
+    Map<String, dynamic>? driver,
+  ) {
+    for (final value in [
+      ride['vehicle'],
+      ride['activeVehicle'],
+      driver?['vehicle'],
+      driver?['activeVehicle'],
+    ]) {
+      if (value is Map) return Map<String, dynamic>.from(value);
+    }
+    return null;
+  }
+
+  String? _vehicleDisplayName(Map<String, dynamic>? vehicle) {
+    if (vehicle == null) return null;
+    String? valueFor(List<String> keys) {
+      for (final key in keys) {
+        final value = vehicle[key]?.toString().trim();
+        if (value != null && value.isNotEmpty) return value;
+      }
+      return null;
+    }
+
+    final text = [
+      valueFor(const ['manufacturer', 'brand', 'make']),
+      valueFor(const ['modelName', 'model_name', 'model', 'name']),
+      valueFor(const ['year', 'modelYear', 'model_year']),
+      valueFor(const ['color', 'vehicle_color', 'car_color']),
+    ].whereType<String>().join(' · ');
+    return text.isEmpty ? null : text;
+  }
+
+  String? _vehiclePlate(Map<String, dynamic>? vehicle) {
+    if (vehicle == null) return null;
+    for (final key in const [
+      'vehiclePlate',
+      'vehicle_plate',
+      'licensePlate',
+      'license_plate',
+      'plate',
+      'carPlate',
+    ]) {
+      final value = vehicle[key]?.toString().trim();
+      if (value != null && value.isNotEmpty) return value;
+    }
+    return null;
+  }
+
+  String? _driverPhotoUrl(Map<String, dynamic>? driver) {
+    if (driver == null) return null;
+    final profile = driver['profile'] is Map
+        ? Map<String, dynamic>.from(driver['profile'] as Map)
+        : const <String, dynamic>{};
+    final value = driver['profilePhotoUrl'] ??
+        driver['profile_photo_url'] ??
+        driver['photoUrl'] ??
+        driver['photo_url'] ??
+        driver['avatarUrl'] ??
+        driver['avatar'] ??
+        profile['profilePhotoUrl'] ??
+        profile['profile_photo_url'] ??
+        profile['photoUrl'] ??
+        profile['photo_url'];
+    final url = value?.toString().trim();
+    if (url == null || url.isEmpty) return null;
+    final parsed = Uri.tryParse(url);
+    if (parsed == null) return null;
+    if (parsed.hasScheme) return parsed.toString();
+    final apiBase = Uri.parse(_baseApi.baseUrl);
+    final origin = apiBase.replace(path: '/', query: null, fragment: null);
+    return origin.resolve(url.startsWith('/') ? url : '/$url').toString();
   }
 
   String _mapStatus(String? status) {

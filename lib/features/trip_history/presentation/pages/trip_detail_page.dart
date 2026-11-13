@@ -4,6 +4,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:tmjapp/app/router/app_router.dart';
 import 'package:tmjapp/features/trip_history/domain/entities/trip_history_item.dart';
+import 'package:tmjapp/features/ride_request/presentation/widgets/driver_avatar.dart';
 import 'package:tmjapp/features/trip_history/presentation/services/trip_receipt_pdf_service.dart';
 
 IconData paymentIconForLabel(String paymentLabel) {
@@ -372,18 +373,7 @@ class _DriverCard extends StatelessWidget {
         Stack(
           clipBehavior: Clip.none,
           children: [
-            Container(
-              width: 50,
-              height: 50,
-              decoration: const BoxDecoration(
-                shape: BoxShape.circle,
-                image: DecorationImage(
-                  // Substituir pelo avatar real do motorista quando houver na API
-                  image: NetworkImage('https://i.pravatar.cc/150?img=11'),
-                  fit: BoxFit.cover,
-                ),
-              ),
-            ),
+            DriverAvatar(photoUrl: item.driverPhotoUrl, size: 50),
             Positioned(
               bottom: -4,
               left: 4,
@@ -463,6 +453,7 @@ class _DriverCard extends StatelessWidget {
                   'rideId': item.id,
                   'driverName': item.driverName,
                   'driverRating': item.rating,
+                  'driverPhotoUrl': item.driverPhotoUrl,
                 },
               ),
               padding: EdgeInsets.zero,

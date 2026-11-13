@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:tmjapp/features/ride_request/presentation/widgets/driver_avatar.dart';
 
 class RideFinishedSheet extends StatefulWidget {
   const RideFinishedSheet({
@@ -7,18 +8,26 @@ class RideFinishedSheet extends StatefulWidget {
     required this.originTitle,
     required this.destinationTitle,
     required this.driverName,
+    this.driverPhotoUrl,
+    this.vehicleSummary,
+    this.vehiclePlate,
     required this.finalPrice,
     required this.paymentMethod,
     required this.onFinish,
+    this.onSubmitRating,
     this.onClearActiveRide,
   });
 
   final String originTitle;
   final String destinationTitle;
   final String? driverName;
+  final String? driverPhotoUrl;
+  final String? vehicleSummary;
+  final String? vehiclePlate;
   final double finalPrice;
   final String paymentMethod;
   final VoidCallback onFinish;
+  final Future<void> Function(int rating)? onSubmitRating;
   final VoidCallback? onClearActiveRide;
 
   @override
@@ -27,11 +36,40 @@ class RideFinishedSheet extends StatefulWidget {
 
 class _RideFinishedSheetState extends State<RideFinishedSheet> {
   int _selectedRating = 0;
+  bool _isSubmittingRating = false;
+  String? _ratingError;
+
+  Future<void> _finish() async {
+    if (_isSubmittingRating) return;
+    if (_selectedRating > 0 && widget.onSubmitRating != null) {
+      setState(() {
+        _isSubmittingRating = true;
+        _ratingError = null;
+      });
+      try {
+        await widget.onSubmitRating!(_selectedRating);
+      } catch (error) {
+        if (!mounted) return;
+        setState(() {
+          _isSubmittingRating = false;
+          _ratingError = error.toString().replaceFirst('Exception: ', '');
+        });
+        return;
+      }
+    }
+    if (!mounted) return;
+    widget.onClearActiveRide?.call();
+    widget.onFinish();
+  }
 
   @override
   Widget build(BuildContext context) {
     final driverFirstName =
         (widget.driverName ?? 'o motorista').split(' ').first;
+    final vehicleInfo = [
+      widget.vehicleSummary?.trim(),
+      widget.vehiclePlate?.trim(),
+    ].whereType<String>().where((value) => value.isNotEmpty).join(' • ');
 
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
@@ -148,17 +186,10 @@ class _RideFinishedSheetState extends State<RideFinishedSheet> {
               children: [
                 Row(
                   children: [
-                    Container(
-                      width: 54,
-                      height: 54,
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF0F766E), Color(0xFF155E75)],
-                        ),
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: const Icon(Icons.person_rounded,
-                          color: Colors.white, size: 32),
+                    DriverAvatar(
+                      photoUrl: widget.driverPhotoUrl,
+                      size: 54,
+                      borderRadius: BorderRadius.circular(14),
                     ),
                     const SizedBox(width: 14),
                     Expanded(
@@ -174,7 +205,9 @@ class _RideFinishedSheetState extends State<RideFinishedSheet> {
                             ),
                           ),
                           Text(
-                            'Toyota Corolla • Prata • ABC-1234',
+                            vehicleInfo.isEmpty
+                                ? 'Veículo não informado'
+                                : vehicleInfo,
                             style: GoogleFonts.plusJakartaSans(
                               fontSize: 12,
                               fontWeight: FontWeight.w500,
@@ -233,6 +266,18 @@ class _RideFinishedSheetState extends State<RideFinishedSheet> {
                     ),
                   ),
                 ],
+                if (_ratingError != null) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    _ratingError!,
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFFB42318),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -243,10 +288,7 @@ class _RideFinishedSheetState extends State<RideFinishedSheet> {
             width: double.infinity,
             height: 56,
             child: ElevatedButton(
-              onPressed: () {
-                widget.onClearActiveRide?.call();
-                widget.onFinish();
-              },
+              onPressed: _isSubmittingRating ? null : _finish,
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFFC92D7A),
                 foregroundColor: Colors.white,
@@ -255,7 +297,7 @@ class _RideFinishedSheetState extends State<RideFinishedSheet> {
                     borderRadius: BorderRadius.circular(18)),
               ),
               child: Text(
-                'CONCLUIR',
+                _isSubmittingRating ? 'ENVIANDO AVALIAÇÃO...' : 'CONCLUIR',
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 16,
                   fontWeight: FontWeight.w800,
