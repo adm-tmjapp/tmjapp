@@ -15,8 +15,8 @@ if [[ -z "${PLAY_JSON_KEY_DATA:-}" ]]; then
 fi
 
 export PLAY_PACKAGE_NAME="${PLAY_PACKAGE_NAME:-br.com.tmjapp.tmjapp}"
-export VERSION_NAME="${VERSION_NAME:-1.0.0}"
-export VERSION_CODE="${VERSION_CODE:-1}"
+export VERSION_NAME="${VERSION_NAME:-1.0.12}"
+export VERSION_CODE="${VERSION_CODE:-23}"
 export FLUTTER_TARGET="${FLUTTER_TARGET:-lib/main_prod.dart}"
 
 bundle install

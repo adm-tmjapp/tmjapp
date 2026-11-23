@@ -4,8 +4,8 @@ platform :android do
   desc "Gera o AAB de produção e publica no teste interno do Google Play"
   lane :internal do
     package_name = ENV.fetch("PLAY_PACKAGE_NAME", "br.com.tmjapp.tmjapp")
-    version_name = ENV.fetch("VERSION_NAME", "1.0.0")
-    version_code = ENV.fetch("VERSION_CODE", "1")
+    version_name = ENV.fetch("VERSION_NAME", "1.0.12")
+    version_code = ENV.fetch("VERSION_CODE", "23")
     aab_path = "build/app/outputs/bundle/release/app-release.aab"
     json_key_data = ENV.fetch("PLAY_JSON_KEY_DATA")
     target = ENV.fetch("FLUTTER_TARGET", "lib/main_prod.dart")
