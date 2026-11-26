@@ -20,6 +20,10 @@ void main() {
             'driver': {
               'id': 'driver-1',
               'name': 'Leopoldo Silva Santos',
+              'profile': {
+                'profilePhoto': '/uploads/drivers/leopoldo.jpg',
+                'averageRating': 4.7,
+              },
               'activeVehicle': {
                 'manufacturer': 'Citroen',
                 'modelName': 'C3 You',
@@ -41,5 +45,31 @@ void main() {
     expect(detail.vehicle?.model, 'Citroen C3 You 2026');
     expect(detail.vehicle?.licensePlate, 'ABCD122');
     expect(detail.vehicle?.color, 'BRANCO');
+    expect(detail.driver?.rating, 4.7);
+    expect(detail.driver?.photoUrl,
+        'https://api.tmj.test/uploads/drivers/leopoldo.jpg');
+  });
+
+  test('prefers the vehicle currently active for the assigned driver',
+      () async {
+    final client = MockClient((_) async => http.Response(
+          jsonEncode({
+            'id': 'ride-1',
+            'status': 'accepted',
+            'vehicle': {'model': 'Veículo antigo', 'plate': 'OLD0001'},
+            'driver': {
+              'activeVehicle': {'model': 'Veículo ativo', 'plate': 'NEW0001'},
+            },
+          }),
+          200,
+        ));
+    final dataSource = RideRequestRemoteDataSource(
+      baseApi: BaseApi(baseUrl: 'https://api.tmj.test/api/v2', client: client),
+    );
+
+    final detail = await dataSource.getRideDetail('ride-1');
+
+    expect(detail.vehicle?.model, 'Veículo ativo');
+    expect(detail.vehicle?.licensePlate, 'NEW0001');
   });
 }

@@ -74,7 +74,7 @@ class TripHistoryRemoteDataSource {
       durationLabel: durationMin > 0 ? '${durationMin.round()} min' : '--',
       paymentLabel: payment,
       plate: _vehiclePlate(vehicle) ?? '--',
-      rating: (driver?['rating'] as num?)?.toDouble() ?? 5,
+      rating: _driverRating(driver) ?? 5,
       passengerRating: _parsePassengerRating(json),
       driverPhotoUrl: _driverPhotoUrl(driver),
       latitude: (pickup?['latitude'] as num?)?.toDouble() ?? 0.0,
@@ -97,10 +97,10 @@ class TripHistoryRemoteDataSource {
     Map<String, dynamic>? driver,
   ) {
     for (final value in [
-      ride['vehicle'],
-      ride['activeVehicle'],
-      driver?['vehicle'],
       driver?['activeVehicle'],
+      driver?['vehicle'],
+      ride['activeVehicle'],
+      ride['vehicle'],
     ]) {
       if (value is Map) return Map<String, dynamic>.from(value);
     }
@@ -149,12 +149,16 @@ class TripHistoryRemoteDataSource {
         : const <String, dynamic>{};
     final value = driver['profilePhotoUrl'] ??
         driver['profile_photo_url'] ??
+        driver['profilePhoto'] ??
+        driver['profile_photo'] ??
         driver['photoUrl'] ??
         driver['photo_url'] ??
         driver['avatarUrl'] ??
         driver['avatar'] ??
         profile['profilePhotoUrl'] ??
         profile['profile_photo_url'] ??
+        profile['profilePhoto'] ??
+        profile['profile_photo'] ??
         profile['photoUrl'] ??
         profile['photo_url'];
     final url = value?.toString().trim();
@@ -165,6 +169,21 @@ class TripHistoryRemoteDataSource {
     final apiBase = Uri.parse(_baseApi.baseUrl);
     final origin = apiBase.replace(path: '/', query: null, fragment: null);
     return origin.resolve(url.startsWith('/') ? url : '/$url').toString();
+  }
+
+  double? _driverRating(Map<String, dynamic>? driver) {
+    if (driver == null) return null;
+    final profile = driver['profile'] is Map
+        ? Map<String, dynamic>.from(driver['profile'] as Map)
+        : const <String, dynamic>{};
+    final value = driver['rating'] ??
+        driver['averageRating'] ??
+        driver['average_rating'] ??
+        profile['rating'] ??
+        profile['averageRating'] ??
+        profile['average_rating'];
+    if (value is num) return value.toDouble();
+    return double.tryParse(value?.toString() ?? '');
   }
 
   String _mapStatus(String? status) {

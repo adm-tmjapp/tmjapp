@@ -95,10 +95,6 @@ class RideRequestRemoteDataSource {
       );
       throw Exception('Nenhuma opção de veiculo foi encontrada.');
     }
-    print('🔥 RESPOSTA DA API:');
-    print(responseData);
-    print('🚗 QUANTIDADE DE CARROS: ${(products as List).length}');
-
     return RideQuote(
       rideId: rideId,
       products: products
@@ -129,7 +125,7 @@ class RideRequestRemoteDataSource {
     );
 
     if (response.statusCode != 200) {
-      throw Exception('Não foi possível confirmar a solicitação da corrida.');
+      throw Exception(_checkoutErrorMessage(response.body));
     }
 
     final responseData = jsonDecode(response.body) as Map<String, dynamic>;
@@ -371,7 +367,7 @@ class RideRequestRemoteDataSource {
           : RideDriverSummary(
               id: driver['id']?.toString(),
               name: driver['name']?.toString(),
-              rating: _parseDouble(driver['rating']),
+              rating: _driverRating(driver),
               phoneNumber: driver['phone_number']?.toString(),
               photoUrl: _driverPhotoUrl(driver),
             ),
@@ -387,12 +383,16 @@ class RideRequestRemoteDataSource {
         : const <String, dynamic>{};
     final value = driver['profilePhotoUrl'] ??
         driver['profile_photo_url'] ??
+        driver['profilePhoto'] ??
+        driver['profile_photo'] ??
         driver['photoUrl'] ??
         driver['photo_url'] ??
         driver['avatarUrl'] ??
         driver['avatar'] ??
         profile['profilePhotoUrl'] ??
         profile['profile_photo_url'] ??
+        profile['profilePhoto'] ??
+        profile['profile_photo'] ??
         profile['photoUrl'] ??
         profile['photo_url'];
     final url = value?.toString().trim();
@@ -405,15 +405,29 @@ class RideRequestRemoteDataSource {
     return origin.resolve(url.startsWith('/') ? url : '/$url').toString();
   }
 
+  double? _driverRating(Map<String, dynamic> driver) {
+    final profile = driver['profile'] is Map
+        ? Map<String, dynamic>.from(driver['profile'] as Map)
+        : const <String, dynamic>{};
+    return _parseDouble(
+      driver['rating'] ??
+          driver['averageRating'] ??
+          driver['average_rating'] ??
+          profile['rating'] ??
+          profile['averageRating'] ??
+          profile['average_rating'],
+    );
+  }
+
   Map<String, dynamic>? _vehicleFromRide(
     Map<String, dynamic> ride,
     Map<String, dynamic>? driver,
   ) {
     final candidates = [
-      ride['vehicle'],
-      ride['activeVehicle'],
-      driver?['vehicle'],
       driver?['activeVehicle'],
+      driver?['vehicle'],
+      ride['activeVehicle'],
+      ride['vehicle'],
     ];
     for (final candidate in candidates) {
       if (candidate is Map) return Map<String, dynamic>.from(candidate);
@@ -565,6 +579,21 @@ class RideRequestRemoteDataSource {
     }
 
     return fallback;
+  }
+
+  String _checkoutErrorMessage(String body) {
+    final backendMessage = _extractErrorMessage(
+      body,
+      fallback: 'Não foi possível confirmar a solicitação da corrida.',
+    );
+    final normalized = backendMessage.toLowerCase();
+    if (normalized.contains('motorista') &&
+        (normalized.contains('dispon') ||
+            normalized.contains('encontr') ||
+            normalized.contains('próxim'))) {
+      return 'Nenhum motorista está disponível próximo à sua localização no momento.';
+    }
+    return backendMessage;
   }
 
   RidePaymentOptionsResult _fallbackPaymentOptions() {

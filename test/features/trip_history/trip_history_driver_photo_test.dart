@@ -21,8 +21,10 @@ void main() {
               'status': 'completed',
               'driver': {
                 'name': 'Mariana',
-                'profilePhotoUrl': '/uploads/drivers/mariana.jpg',
-                'rating': 4.8,
+                'profile': {
+                  'profilePhoto': '/uploads/drivers/mariana.jpg',
+                  'averageRating': 4.8,
+                },
                 'activeVehicle': {
                   'manufacturer': 'Citroen',
                   'modelName': 'C3 You',
@@ -45,5 +47,6 @@ void main() {
         'https://api.tmj.test/uploads/drivers/mariana.jpg');
     expect(trips.single.vehicle, 'Citroen · C3 You · 2026 · BRANCO');
     expect(trips.single.plate, 'ABCD122');
+    expect(trips.single.rating, 4.8);
   });
 }

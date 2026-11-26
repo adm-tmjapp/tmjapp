@@ -17,7 +17,7 @@ class FriendDriverRemoteDataSource {
       if (!digits.startsWith('55')) '55$digits',
     };
 
-    for (final field in const ['phone_number', 'phone']) {
+    for (final field in const ['phone_number', 'phoneNumber', 'phone']) {
       for (final candidate in candidates) {
         final snapshot = await _firestore
             .collection('drivers')
@@ -28,13 +28,13 @@ class FriendDriverRemoteDataSource {
 
         final doc = snapshot.docs.first;
         final data = doc.data();
-        if (data['active'] != true) return null;
+        if (!_isAvailable(data)) return null;
 
         final vehicle = data['vehicle'] as Map<String, dynamic>?;
         return FriendDriver(
           id: doc.id,
           name: _text(data['name']) ?? 'Motorista parceiro',
-          phoneNumber: candidate,
+          phoneNumber: _text(data[field]) ?? candidate,
           rating: (data['rating'] as num?)?.toDouble(),
           vehicle: _text(vehicle?['model']) ?? _text(data['vehicle_model']),
           licensePlate:
@@ -48,5 +48,27 @@ class FriendDriverRemoteDataSource {
   String? _text(Object? value) {
     final text = value?.toString().trim() ?? '';
     return text.isEmpty ? null : text;
+  }
+
+  /// O app do motorista publica disponibilidade como `availability: ONLINE`.
+  /// Mantemos `active` por compatibilidade com os documentos legados, mas não
+  /// devemos tratar o motorista online como indisponível apenas porque esse
+  /// campo antigo não existe no Firestore.
+  bool _isAvailable(Map<String, dynamic> data) {
+    if (data['active'] == true ||
+        data['isActive'] == true ||
+        data['isAvailable'] == true ||
+        data['online'] == true) {
+      return true;
+    }
+
+    final availability =
+        (data['availability'] ?? data['onlineStatus'] ?? data['status'] ?? '')
+            .toString()
+            .trim()
+            .toUpperCase();
+    return availability == 'ONLINE' ||
+        availability == 'AVAILABLE' ||
+        availability == 'ACTIVE';
   }
 }
