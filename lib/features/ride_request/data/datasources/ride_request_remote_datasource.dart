@@ -425,14 +425,77 @@ class RideRequestRemoteDataSource {
   ) {
     final candidates = [
       driver?['activeVehicle'],
+      driver?['active_vehicle'],
+      driver?['currentVehicle'],
+      driver?['current_vehicle'],
       driver?['vehicle'],
+      driver?['vehicleInfo'],
+      driver?['vehicle_info'],
+      if (driver?['profile'] is Map)
+        (driver?['profile'] as Map)['activeVehicle'],
+      if (driver?['profile'] is Map) (driver?['profile'] as Map)['vehicle'],
+      _activeVehicleFromCollection(driver?['vehicles']),
       ride['activeVehicle'],
+      ride['active_vehicle'],
       ride['vehicle'],
+      ride['driverVehicle'],
+      ride['driver_vehicle'],
     ];
     for (final candidate in candidates) {
-      if (candidate is Map) return Map<String, dynamic>.from(candidate);
+      final vehicle = _usableVehicle(candidate);
+      if (vehicle != null) return vehicle;
     }
     return null;
+  }
+
+  Map<String, dynamic>? _activeVehicleFromCollection(Object? value) {
+    if (value is! List) return null;
+    final vehicles = value.whereType<Map>().map(Map<String, dynamic>.from);
+    for (final vehicle in vehicles) {
+      if (vehicle['isActive'] == true ||
+          vehicle['active'] == true ||
+          vehicle['status']?.toString().toUpperCase() == 'ACTIVE') {
+        final activeVehicle = _usableVehicle(vehicle);
+        if (activeVehicle != null) return activeVehicle;
+      }
+    }
+    for (final vehicle in vehicles) {
+      final usableVehicle = _usableVehicle(vehicle);
+      if (usableVehicle != null) return usableVehicle;
+    }
+    return null;
+  }
+
+  Map<String, dynamic>? _usableVehicle(Object? value) {
+    if (value is! Map) return null;
+    final vehicle = Map<String, dynamic>.from(value);
+    final nested =
+        vehicle['vehicle'] ?? vehicle['data'] ?? vehicle['attributes'];
+    if (nested is Map) return _usableVehicle(nested);
+    const meaningfulKeys = [
+      'manufacturer',
+      'brand',
+      'make',
+      'modelName',
+      'model_name',
+      'model',
+      'vehicle_model',
+      'car_model',
+      'name',
+      'license_plate',
+      'licensePlate',
+      'vehiclePlate',
+      'plate',
+      'color',
+      'vehicle_color',
+      'car_color',
+    ];
+    return meaningfulKeys.any((key) {
+      final item = vehicle[key]?.toString().trim();
+      return item != null && item.isNotEmpty;
+    })
+        ? vehicle
+        : null;
   }
 
   Future<RideEtaSnapshot> getRideEta(String rideId) async {

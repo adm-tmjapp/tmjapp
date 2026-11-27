@@ -72,4 +72,33 @@ void main() {
     expect(detail.vehicle?.model, 'Veículo ativo');
     expect(detail.vehicle?.licensePlate, 'NEW0001');
   });
+
+  test('ignores an empty active vehicle before falling back to the driver list',
+      () async {
+    final client = MockClient((_) async => http.Response(
+          jsonEncode({
+            'id': 'ride-1',
+            'driver': {
+              'activeVehicle': {'id': 'stale-reference'},
+              'vehicles': [
+                {'model': 'Veículo antigo', 'plate': 'OLD0001'},
+                {
+                  'active': true,
+                  'model': 'Veículo cadastrado',
+                  'plate': 'NEW0001',
+                },
+              ],
+            },
+          }),
+          200,
+        ));
+    final dataSource = RideRequestRemoteDataSource(
+      baseApi: BaseApi(baseUrl: 'https://api.tmj.test/api/v2', client: client),
+    );
+
+    final detail = await dataSource.getRideDetail('ride-1');
+
+    expect(detail.vehicle?.model, 'Veículo cadastrado');
+    expect(detail.vehicle?.licensePlate, 'NEW0001');
+  });
 }

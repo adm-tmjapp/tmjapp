@@ -49,4 +49,34 @@ void main() {
     expect(trips.single.plate, 'ABCD122');
     expect(trips.single.rating, 4.8);
   });
+
+  test('uses the active vehicle from the driver collection when needed',
+      () async {
+    final client = MockClient((_) async => http.Response(
+          jsonEncode([
+            {
+              'id': 'ride-1',
+              'driver': {
+                'activeVehicle': {'id': 'stale-reference'},
+                'vehicles': [
+                  {
+                    'isActive': true,
+                    'model': 'Veículo cadastrado',
+                    'plate': 'NEW0001',
+                  },
+                ],
+              },
+            },
+          ]),
+          200,
+        ));
+    final dataSource = TripHistoryRemoteDataSource(
+      baseApi: BaseApi(baseUrl: 'https://api.tmj.test/api/v2', client: client),
+    );
+
+    final trips = await dataSource.fetchTrips();
+
+    expect(trips.single.vehicle, 'Veículo cadastrado');
+    expect(trips.single.plate, 'NEW0001');
+  });
 }
